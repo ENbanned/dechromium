@@ -1,0 +1,303 @@
+From 7062bf686d5bccd6003fa9cae95f3615aafa7d70 Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Thu, 26 Feb 2026 12:10:27 +0000
+Subject: [PATCH 10/11] 010-proxy-system
+
+---
+ .gitignore                                    |   1 +
+ .siso_failed_targets                          |   2 +-
+ .../browser/chrome_content_browser_client.cc  |   5 +
+ net/socket/socks5_client_socket.cc            | 125 ++++++++++++++++--
+ net/socket/socks5_client_socket.h             |  12 ++
+ services/network/url_loader.cc                |  14 +-
+ 6 files changed, 144 insertions(+), 15 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 4c61af331b827..e8733ff4d609b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -347,3 +347,4 @@ third_party/rust/target/
+ 
+ # Trace files created when using --trace-startup.
+ **/chrometrace.log
++.siso_failed_targets
+diff --git a/.siso_failed_targets b/.siso_failed_targets
+index 8852178eee7a7..d13153f732441 100644
+--- a/.siso_failed_targets
++++ b/.siso_failed_targets
+@@ -1 +1 @@
+-{"targets":["chrome"],"failed":["obj/content/browser/browser/render_process_host_impl.o"]}
+\ No newline at end of file
++{"targets":["chrome"],"failed":["obj/net/net/socks5_client_socket.o"]}
+\ No newline at end of file
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index b96e429ee3477..7a7bf5488476d 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -2950,6 +2950,11 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
+     command_line->CopySwitchesFrom(browser_command_line, kSwitchNames);
+ #endif
+     MaybeAppendSecureOriginsAllowlistSwitch(command_line);
++    static const char* const kAspectProxySwitches[] = {
++        "aspect-proxy-username",
++        "aspect-proxy-password",
++    };
++    command_line->CopySwitchesFrom(browser_command_line, kAspectProxySwitches);
+   } else if (process_type == switches::kZygoteProcess) {
+ #if BUILDFLAG(IS_CHROMEOS)
+     // This is called before feature flags are parsed, so pass them in their raw
+diff --git a/net/socket/socks5_client_socket.cc b/net/socket/socks5_client_socket.cc
+index 3eeeb7e204c3d..615bac8b4f8e4 100644
+--- a/net/socket/socks5_client_socket.cc
++++ b/net/socket/socks5_client_socket.cc
+@@ -9,6 +9,7 @@
+ #include <array>
+ #include <utility>
+ 
++#include "base/command_line.h"
+ #include "base/compiler_specific.h"
+ #include "base/format_macros.h"
+ #include "base/functional/bind.h"
+@@ -31,6 +32,7 @@ const unsigned int SOCKS5ClientSocket::kReadHeaderSize = 5;
+ const uint8_t SOCKS5ClientSocket::kSOCKS5Version = 0x05;
+ const uint8_t SOCKS5ClientSocket::kTunnelCommand = 0x01;
+ const uint8_t SOCKS5ClientSocket::kNullByte = 0x00;
++const unsigned int SOCKS5ClientSocket::kAuthReadHeaderSize = 2;
+ 
+ static_assert(sizeof(struct in_addr) == 4, "incorrect system size of IPv4");
+ static_assert(sizeof(struct in6_addr) == 16, "incorrect system size of IPv6");
+@@ -44,7 +46,13 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(
+       transport_socket_(std::move(transport_socket)),
+       destination_(destination),
+       net_log_(transport_socket_->NetLog()),
+-      traffic_annotation_(traffic_annotation) {}
++      traffic_annotation_(traffic_annotation) {
++  auto* cmd = base::CommandLine::ForCurrentProcess();
++  if (cmd->HasSwitch("aspect-proxy-username")) {
++    socks_username_ = cmd->GetSwitchValueASCII("aspect-proxy-username");
++    socks_password_ = cmd->GetSwitchValueASCII("aspect-proxy-password");
++  }
++}
+ 
+ SOCKS5ClientSocket::~SOCKS5ClientSocket() {
+   Disconnect();
+@@ -224,6 +232,20 @@ int SOCKS5ClientSocket::DoLoop(int last_io_result) {
+         net_log_.EndEventWithNetErrorCode(NetLogEventType::SOCKS5_GREET_READ,
+                                           rv);
+         break;
++      case STATE_AUTH_WRITE:
++        DCHECK_EQ(OK, rv);
++        rv = DoAuthWrite();
++        break;
++      case STATE_AUTH_WRITE_COMPLETE:
++        rv = DoAuthWriteComplete(rv);
++        break;
++      case STATE_AUTH_READ:
++        DCHECK_EQ(OK, rv);
++        rv = DoAuthRead();
++        break;
++      case STATE_AUTH_READ_COMPLETE:
++        rv = DoAuthReadComplete(rv);
++        break;
+       case STATE_HANDSHAKE_WRITE:
+         DCHECK_EQ(OK, rv);
+         net_log_.BeginEvent(NetLogEventType::SOCKS5_HANDSHAKE_WRITE);
+@@ -251,22 +273,29 @@ int SOCKS5ClientSocket::DoLoop(int last_io_result) {
+   return rv;
+ }
+ 
+-static constexpr std::array<uint8_t, 3> kSOCKS5GreetWriteData{
+-    0x05, 0x01, 0x00};  // no authentication
++static constexpr std::array<uint8_t, 3> kSOCKS5GreetNoAuth{
++    0x05, 0x01, 0x00};
++static constexpr std::array<uint8_t, 4> kSOCKS5GreetWithAuth{
++    0x05, 0x02, 0x00, 0x02};
+ 
+ int SOCKS5ClientSocket::DoGreetWrite() {
+-  // Since we only have 1 byte to send the hostname length in, if the
+-  // URL has a hostname longer than 255 characters we can't send it.
+   if (0xFF < destination_.host().size()) {
+     net_log_.AddEvent(NetLogEventType::SOCKS_HOSTNAME_TOO_BIG);
+     return ERR_SOCKS_CONNECTION_FAILED;
+   }
+ 
+   if (!write_buf_) {
+-    auto greet_buffer =
+-        base::MakeRefCounted<WrappedIOBuffer>(kSOCKS5GreetWriteData);
+-    write_buf_ = base::MakeRefCounted<DrainableIOBuffer>(
+-        std::move(greet_buffer), greet_buffer->size());
++    if (!socks_username_.empty()) {
++      auto greet_buffer =
++          base::MakeRefCounted<WrappedIOBuffer>(kSOCKS5GreetWithAuth);
++      write_buf_ = base::MakeRefCounted<DrainableIOBuffer>(
++          std::move(greet_buffer), greet_buffer->size());
++    } else {
++      auto greet_buffer =
++          base::MakeRefCounted<WrappedIOBuffer>(kSOCKS5GreetNoAuth);
++      write_buf_ = base::MakeRefCounted<DrainableIOBuffer>(
++          std::move(greet_buffer), greet_buffer->size());
++    }
+   }
+ 
+   next_state_ = STATE_GREET_WRITE_COMPLETE;
+@@ -323,12 +352,82 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
+                                    "version", read_data[0]);
+     return ERR_SOCKS_CONNECTION_FAILED;
+   }
+-  if (read_data[1] != 0x00) {
+-    net_log_.AddEventWithIntParams(NetLogEventType::SOCKS_UNEXPECTED_AUTH,
+-                                   "method", read_data[1]);
+-    return ERR_SOCKS_CONNECTION_FAILED;
++  if (read_data[1] == 0x00) {
++    read_buf_.reset();
++    next_state_ = STATE_HANDSHAKE_WRITE;
++    return OK;
++  }
++  if (read_data[1] == 0x02 && !socks_username_.empty()) {
++    read_buf_.reset();
++    next_state_ = STATE_AUTH_WRITE;
++    return OK;
++  }
++  net_log_.AddEventWithIntParams(NetLogEventType::SOCKS_UNEXPECTED_AUTH,
++                                 "method", read_data[1]);
++  return ERR_SOCKS_CONNECTION_FAILED;
++}
++
++int SOCKS5ClientSocket::DoAuthWrite() {
++  next_state_ = STATE_AUTH_WRITE_COMPLETE;
++  if (!write_buf_) {
++    std::vector<uint8_t> auth_data;
++    auth_data.reserve(3 + socks_username_.size() + socks_password_.size());
++    auth_data.push_back(0x01);
++    auth_data.push_back(
++        base::checked_cast<uint8_t>(socks_username_.size()));
++    auth_data.insert(auth_data.end(), socks_username_.begin(),
++                     socks_username_.end());
++    auth_data.push_back(
++        base::checked_cast<uint8_t>(socks_password_.size()));
++    auth_data.insert(auth_data.end(), socks_password_.begin(),
++                     socks_password_.end());
++    auto base_buffer =
++        base::MakeRefCounted<VectorIOBuffer>(std::move(auth_data));
++    write_buf_ = base::MakeRefCounted<DrainableIOBuffer>(
++        std::move(base_buffer), base_buffer->size());
+   }
++  return transport_socket_->Write(write_buf_.get(),
++                                  write_buf_->BytesRemaining(), io_callback_,
++                                  traffic_annotation_);
++}
+ 
++int SOCKS5ClientSocket::DoAuthWriteComplete(int result) {
++  if (result < 0)
++    return result;
++  write_buf_->DidConsume(result);
++  if (write_buf_->BytesRemaining() == 0) {
++    write_buf_.reset();
++    next_state_ = STATE_AUTH_READ;
++  } else {
++    next_state_ = STATE_AUTH_WRITE;
++  }
++  return OK;
++}
++
++int SOCKS5ClientSocket::DoAuthRead() {
++  next_state_ = STATE_AUTH_READ_COMPLETE;
++  if (!read_buf_) {
++    read_buf_ = base::MakeRefCounted<GrowableIOBuffer>();
++    read_buf_->SetCapacity(kAuthReadHeaderSize);
++  }
++  return transport_socket_->Read(read_buf_.get(),
++                                 read_buf_->RemainingCapacity(), io_callback_);
++}
++
++int SOCKS5ClientSocket::DoAuthReadComplete(int result) {
++  if (result < 0)
++    return result;
++  if (result == 0)
++    return ERR_SOCKS_CONNECTION_FAILED;
++  read_buf_->set_offset(read_buf_->offset() + result);
++  if (read_buf_->RemainingCapacity() > 0) {
++    next_state_ = STATE_AUTH_READ;
++    return OK;
++  }
++  base::span<uint8_t> read_data = read_buf_->span_before_offset();
++  if (read_data[1] != 0x00) {
++    return ERR_PROXY_AUTH_UNSUPPORTED;
++  }
+   read_buf_.reset();
+   next_state_ = STATE_HANDSHAKE_WRITE;
+   return OK;
+diff --git a/net/socket/socks5_client_socket.h b/net/socket/socks5_client_socket.h
+index fe8da4858d692..b3730cbbfadcb 100644
+--- a/net/socket/socks5_client_socket.h
++++ b/net/socket/socks5_client_socket.h
+@@ -82,6 +82,10 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
+     STATE_GREET_WRITE_COMPLETE,
+     STATE_GREET_READ,
+     STATE_GREET_READ_COMPLETE,
++    STATE_AUTH_WRITE,
++    STATE_AUTH_WRITE_COMPLETE,
++    STATE_AUTH_READ,
++    STATE_AUTH_READ_COMPLETE,
+     STATE_HANDSHAKE_WRITE,
+     STATE_HANDSHAKE_WRITE_COMPLETE,
+     STATE_HANDSHAKE_READ,
+@@ -116,6 +120,10 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
+   int DoGreetReadComplete(int result);
+   int DoGreetWrite();
+   int DoGreetWriteComplete(int result);
++  int DoAuthWrite();
++  int DoAuthWriteComplete(int result);
++  int DoAuthRead();
++  int DoAuthReadComplete(int result);
+ 
+   // Creates a DrainableIOBuffer containing the SOCKS handshake.
+   scoped_refptr<DrainableIOBuffer> BuildHandshakeWriteBuffer() const;
+@@ -149,6 +157,10 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
+ 
+   // Traffic annotation for socket control.
+   NetworkTrafficAnnotationTag traffic_annotation_;
++
++  std::string socks_username_;
++  std::string socks_password_;
++  static const unsigned int kAuthReadHeaderSize;
+ };
+ 
+ }  // namespace net
+diff --git a/services/network/url_loader.cc b/services/network/url_loader.cc
+index 5419bf1fc47d5..a5b9822e04a52 100644
+--- a/services/network/url_loader.cc
++++ b/services/network/url_loader.cc
+@@ -32,6 +32,7 @@
+ #include "base/sequence_checker.h"
+ #include "base/strings/strcat.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/utf_string_conversions.h"
+ #include "base/strings/string_view_util.h"
+ #include "base/task/sequenced_task_runner.h"
+ #include "base/task/single_thread_task_runner.h"
+@@ -1062,9 +1063,20 @@ void URLLoader::OnAuthRequired(net::URLRequest* url_request,
+                                const net::AuthChallengeInfo& auth_info) {
+   if (has_fetch_streaming_upload_body_) {
+     NotifyCompleted(net::ERR_FAILED);
+-    // |this| may have been deleted.
+     return;
+   }
++
++  if (auth_info.is_proxy) {
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch("aspect-proxy-username")) {
++      std::string user = cmd->GetSwitchValueASCII("aspect-proxy-username");
++      std::string pass = cmd->GetSwitchValueASCII("aspect-proxy-password");
++      OnAuthCredentials(net::AuthCredentials(
++          base::ASCIIToUTF16(user), base::ASCIIToUTF16(pass)));
++      return;
++    }
++  }
++
+   if (!url_loader_network_observer_) {
+     OnAuthCredentials(std::nullopt);
+     return;
+-- 
+2.39.5
+

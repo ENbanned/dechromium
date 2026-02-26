@@ -1,0 +1,199 @@
+From b859c847d491161bb75530fc4f474129fbbc03e4 Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Thu, 26 Feb 2026 10:30:58 +0000
+Subject: [PATCH 07/11] 007-canvas-noise
+
+---
+ .../renderer_host/render_process_host_impl.cc |  1 +
+ third_party/blink/common/switches.cc          |  1 +
+ third_party/blink/public/common/switches.h    |  1 +
+ .../canvas2d/base_rendering_context_2d.cc     | 41 ++++++++++++++++
+ .../platform/graphics/image_data_buffer.cc    | 47 +++++++++++++++++++
+ 5 files changed, 91 insertions(+)
+
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index e582eda5ae781..f256c23eee52e 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -3803,6 +3803,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+       blink::switches::kAspectScreenAvailHeight,
+       blink::switches::kAspectColorDepth,
+       blink::switches::kAspectDevicePixelRatio,
++      blink::switches::kAspectCanvasNoiseSeed,
+       // Please keep these in alphabetical order. Compositor switches here
+       // should also be added to
+       // chrome/browser/ash/login/chrome_restart_request.cc.
+diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
+index 097da4f637ef6..55138a48d1e95 100644
+--- a/third_party/blink/common/switches.cc
++++ b/third_party/blink/common/switches.cc
+@@ -172,6 +172,7 @@ const char kAspectDevicePixelRatio[] = "aspect-device-pixel-ratio";
+ const char kAspectUaPlatform[] = "aspect-ua-platform";
+ const char kAspectUaPlatformVersion[] = "aspect-ua-platform-version";
+ const char kAspectUaArch[] = "aspect-ua-arch";
++const char kAspectCanvasNoiseSeed[] = "aspect-canvas-noise-seed";
+ 
+ }  // namespace switches
+ }  // namespace blink
+diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
+index 2dfec9296aaa9..bac5ce57b94fb 100644
+--- a/third_party/blink/public/common/switches.h
++++ b/third_party/blink/public/common/switches.h
+@@ -68,6 +68,7 @@ BLINK_COMMON_EXPORT extern const char kAspectDevicePixelRatio[];
+ BLINK_COMMON_EXPORT extern const char kAspectUaPlatform[];
+ BLINK_COMMON_EXPORT extern const char kAspectUaPlatformVersion[];
+ BLINK_COMMON_EXPORT extern const char kAspectUaArch[];
++BLINK_COMMON_EXPORT extern const char kAspectCanvasNoiseSeed[];
+ }  // namespace switches
+ }  // namespace blink
+ 
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+index de1f06bb71333..3a75398ba9205 100644
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -4,14 +4,17 @@
+ 
+ #include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
+ 
++#include <algorithm>
+ #include <cmath>
+ #include <cstdint>
+ #include <cstdlib>
++#include <random>
+ #include <memory>
+ #include <optional>
+ #include <utility>
+ 
+ #include "base/check.h"
++#include "base/command_line.h"
+ #include "base/check_op.h"
+ #include "base/location.h"
+ #include "base/memory/scoped_refptr.h"
+@@ -20,6 +23,7 @@
+ #include "base/notreached.h"
+ #include "base/numerics/checked_math.h"
+ #include "base/numerics/safe_conversions.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
+ #include "cc/paint/paint_canvas.h"
+@@ -28,6 +32,7 @@
+ #include "components/viz/common/resources/shared_image_format_utils.h"
+ #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+ #include "third_party/blink/public/common/metrics/document_update_reason.h"
++#include "third_party/blink/public/common/switches.h"
+ #include "third_party/blink/public/mojom/devtools/console_message.mojom-blink-forward.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_canvas_text_align.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_canvas_text_baseline.h"
+@@ -524,6 +529,42 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
+           snapshot->PaintImageForCurrentFrame().GetSkImageInfo().bounds();
+       DCHECK(!bounds.intersect(SkIRect::MakeXYWH(sx, sy, sw, sh)));
+     }
++
++    static const uint64_t canvas_seed = []() -> uint64_t {
++      uint64_t s = 0;
++      const auto& cmd = *base::CommandLine::ForCurrentProcess();
++      if (cmd.HasSwitch(blink::switches::kAspectCanvasNoiseSeed))
++        base::StringToUint64(
++            cmd.GetSwitchValueASCII(blink::switches::kAspectCanvasNoiseSeed),
++            &s);
++      return s;
++    }();
++    if (canvas_seed != 0 && read_pixels_successful) {
++      int w = image_data_pixmap.width();
++      int h = image_data_pixmap.height();
++      int bpp = image_data_pixmap.info().bytesPerPixel();
++      if (w > 0 && h > 0 && bpp >= 3) {
++        int total = w * h;
++        int count = std::max(2, total / 100);
++        std::mt19937_64 rng(canvas_seed);
++        std::uniform_int_distribution<int> pos_dist(0, total - 1);
++        std::uniform_int_distribution<int> ch_dist(0, 2);
++        std::uniform_int_distribution<int> delta_dist(0, 1);
++        auto* base_ptr =
++            static_cast<uint8_t*>(image_data_pixmap.writable_addr());
++        size_t rb = image_data_pixmap.rowBytes();
++        for (int i = 0; i < count; i++) {
++          int pos = pos_dist(rng);
++          int x = pos % w;
++          int y = pos / w;
++          int ch = ch_dist(rng);
++          int delta = delta_dist(rng) * 2 - 1;
++          uint8_t* p = UNSAFE_BUFFERS(base_ptr + y * rb + x * bpp + ch);
++          int val = static_cast<int>(*p) + delta;
++          *p = static_cast<uint8_t>(std::clamp(val, 0, 255));
++        }
++      }
++    }
+   }
+ 
+   return image_data;
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+index c76f6553e1cec..968edb1021ca7 100644
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+@@ -32,7 +32,13 @@
+ 
+ #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
+ 
++#include <algorithm>
++#include <random>
++
++#include "base/command_line.h"
+ #include "base/compiler_specific.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
+ #include "base/memory/ptr_util.h"
+ #include "third_party/blink/renderer/platform/image-encoders/image_encoder_utils.h"
+ #include "third_party/blink/renderer/platform/wtf/text/base64.h"
+@@ -97,6 +103,47 @@ ImageDataBuffer::ImageDataBuffer(scoped_refptr<StaticBitmapImage> image) {
+     MSAN_CHECK_MEM_IS_INITIALIZED(pixmap_.addr(), pixmap_.computeByteSize());
+   }
+   is_valid_ = true;
++
++  static const uint64_t canvas_seed = []() -> uint64_t {
++    uint64_t s = 0;
++    const auto& cmd = *base::CommandLine::ForCurrentProcess();
++    if (cmd.HasSwitch(blink::switches::kAspectCanvasNoiseSeed))
++      base::StringToUint64(
++          cmd.GetSwitchValueASCII(blink::switches::kAspectCanvasNoiseSeed), &s);
++    return s;
++  }();
++  if (canvas_seed != 0 && pixmap_.width() > 0 && pixmap_.height() > 0 &&
++      pixmap_.info().bytesPerPixel() >= 3) {
++    size_t byte_size = pixmap_.computeByteSize();
++    sk_sp<SkData> noise_data = SkData::MakeUninitialized(byte_size);
++    UNSAFE_BUFFERS(memcpy(noise_data->writable_data(), pixmap_.addr(), byte_size));
++    void* pixels = noise_data->writable_data();
++    retained_image_ =
++        SkImages::RasterFromData(pixmap_.info(), noise_data, pixmap_.rowBytes());
++    pixmap_ = SkPixmap(pixmap_.info(), pixels, pixmap_.rowBytes());
++
++    int w = pixmap_.width();
++    int h = pixmap_.height();
++    int bpp = pixmap_.info().bytesPerPixel();
++    int total = w * h;
++    int count = std::max(2, total / 100);
++    std::mt19937_64 rng(canvas_seed);
++    std::uniform_int_distribution<int> pos_dist(0, total - 1);
++    std::uniform_int_distribution<int> ch_dist(0, 2);
++    std::uniform_int_distribution<int> delta_dist(0, 1);
++    auto* base_ptr = static_cast<uint8_t*>(pixels);
++    size_t rb = pixmap_.rowBytes();
++    for (int i = 0; i < count; i++) {
++      int pos = pos_dist(rng);
++      int x = pos % w;
++      int y = pos / w;
++      int ch = ch_dist(rng);
++      int delta = delta_dist(rng) * 2 - 1;
++      uint8_t* p = UNSAFE_BUFFERS(base_ptr + y * rb + x * bpp + ch);
++      int val = static_cast<int>(*p) + delta;
++      *p = static_cast<uint8_t>(std::clamp(val, 0, 255));
++    }
++  }
+ }
+ 
+ ImageDataBuffer::ImageDataBuffer(const SkPixmap& pixmap)
+-- 
+2.39.5
+

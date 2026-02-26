@@ -1,0 +1,70 @@
+From 39e28d196e6e7737b4cfd7729155c987e9265ffe Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Thu, 26 Feb 2026 10:29:41 +0000
+Subject: [PATCH 05/11] 005-screen-display
+
+---
+ .../renderer/platform/widget/widget_base.cc   | 40 +++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+
+diff --git a/third_party/blink/renderer/platform/widget/widget_base.cc b/third_party/blink/renderer/platform/widget/widget_base.cc
+index 05b89451b9609..27c91745f4d40 100644
+--- a/third_party/blink/renderer/platform/widget/widget_base.cc
++++ b/third_party/blink/renderer/platform/widget/widget_base.cc
+@@ -7,6 +7,8 @@
+ #include <algorithm>
+ 
+ #include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
+ #include "base/debug/dump_without_crashing.h"
+ #include "base/feature_list.h"
+ #include "base/logging.h"
+@@ -1712,6 +1714,44 @@ void WidgetBase::UpdateSurfaceAndScreenInfo(
+ 
+   local_surface_id_from_parent_ = new_local_surface_id;
+   screen_infos_ = new_screen_infos;
++  {
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    auto& si = screen_infos_.mutable_current();
++    int ival;
++    double dval;
++    if (cmd->HasSwitch(blink::switches::kAspectScreenWidth) &&
++        base::StringToInt(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectScreenWidth),
++            &ival) && ival > 0)
++      si.rect.set_width(ival);
++    if (cmd->HasSwitch(blink::switches::kAspectScreenHeight) &&
++        base::StringToInt(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectScreenHeight),
++            &ival) && ival > 0)
++      si.rect.set_height(ival);
++    if (cmd->HasSwitch(blink::switches::kAspectScreenAvailWidth) &&
++        base::StringToInt(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectScreenAvailWidth),
++            &ival) && ival > 0)
++      si.available_rect.set_width(ival);
++    if (cmd->HasSwitch(blink::switches::kAspectScreenAvailHeight) &&
++        base::StringToInt(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectScreenAvailHeight),
++            &ival) && ival > 0)
++      si.available_rect.set_height(ival);
++    if (cmd->HasSwitch(blink::switches::kAspectColorDepth) &&
++        base::StringToInt(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectColorDepth),
++            &ival) && ival > 0) {
++      si.depth = ival;
++      si.depth_per_component = ival / 3;
++    }
++    if (cmd->HasSwitch(blink::switches::kAspectDevicePixelRatio) &&
++        base::StringToDouble(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectDevicePixelRatio),
++            &dval) && dval > 0)
++      si.device_scale_factor = static_cast<float>(dval);
++  }
+ 
+   // Note carefully that the DSF specified in |new_screen_info| is not the
+   // DSF used by the compositor during device emulation!
+-- 
+2.39.5
+

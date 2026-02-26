@@ -1,0 +1,90 @@
+From 17aaa1ef4c174de9a354f2bcfc9ea524316e593f Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Thu, 26 Feb 2026 10:29:32 +0000
+Subject: [PATCH 01/11] 001-aspect-switches
+
+---
+ .siso_failed_targets                                |  1 +
+ .../renderer_host/render_process_host_impl.cc       |  9 +++++++++
+ third_party/blink/common/switches.cc                | 13 +++++++++++++
+ third_party/blink/public/common/switches.h          | 12 ++++++++++++
+ 4 files changed, 35 insertions(+)
+ create mode 100644 .siso_failed_targets
+
+diff --git a/.siso_failed_targets b/.siso_failed_targets
+new file mode 100644
+index 0000000000000..8852178eee7a7
+--- /dev/null
++++ b/.siso_failed_targets
+@@ -0,0 +1 @@
++{"targets":["chrome"],"failed":["obj/content/browser/browser/render_process_host_impl.o"]}
+\ No newline at end of file
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index 2ad7efb8632ca..e582eda5ae781 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -3794,6 +3794,15 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+       blink::switches::kShowPaintRects,
+       blink::switches::kTouchTextSelectionStrategy,
+       blink::switches::kJavaScriptFlags,
++      blink::switches::kAspectPlatform,
++      blink::switches::kAspectHardwareConcurrency,
++      blink::switches::kAspectDeviceMemory,
++      blink::switches::kAspectScreenWidth,
++      blink::switches::kAspectScreenHeight,
++      blink::switches::kAspectScreenAvailWidth,
++      blink::switches::kAspectScreenAvailHeight,
++      blink::switches::kAspectColorDepth,
++      blink::switches::kAspectDevicePixelRatio,
+       // Please keep these in alphabetical order. Compositor switches here
+       // should also be added to
+       // chrome/browser/ash/login/chrome_restart_request.cc.
+diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
+index da8e6ff391773..097da4f637ef6 100644
+--- a/third_party/blink/common/switches.cc
++++ b/third_party/blink/common/switches.cc
+@@ -160,5 +160,18 @@ const char kWebAudioBypassOutputBufferingOptOut[] =
+ // controlled by base features, but requires an enterprise policy override.
+ const char kDisableReduceAcceptLanguage[] = "disable-reduce-accept-language";
+ 
++const char kAspectPlatform[] = "aspect-platform";
++const char kAspectHardwareConcurrency[] = "aspect-hardware-concurrency";
++const char kAspectDeviceMemory[] = "aspect-device-memory";
++const char kAspectScreenWidth[] = "aspect-screen-width";
++const char kAspectScreenHeight[] = "aspect-screen-height";
++const char kAspectScreenAvailWidth[] = "aspect-screen-avail-width";
++const char kAspectScreenAvailHeight[] = "aspect-screen-avail-height";
++const char kAspectColorDepth[] = "aspect-color-depth";
++const char kAspectDevicePixelRatio[] = "aspect-device-pixel-ratio";
++const char kAspectUaPlatform[] = "aspect-ua-platform";
++const char kAspectUaPlatformVersion[] = "aspect-ua-platform-version";
++const char kAspectUaArch[] = "aspect-ua-arch";
++
+ }  // namespace switches
+ }  // namespace blink
+diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
+index 115125f5a170b..2dfec9296aaa9 100644
+--- a/third_party/blink/public/common/switches.h
++++ b/third_party/blink/public/common/switches.h
+@@ -56,6 +56,18 @@ BLINK_COMMON_EXPORT extern const char kTouchTextSelectionStrategy_Direction[];
+ BLINK_COMMON_EXPORT extern const char kDisableStandardizedBrowserZoom[];
+ BLINK_COMMON_EXPORT extern const char kWebAudioBypassOutputBufferingOptOut[];
+ BLINK_COMMON_EXPORT extern const char kDisableReduceAcceptLanguage[];
++BLINK_COMMON_EXPORT extern const char kAspectPlatform[];
++BLINK_COMMON_EXPORT extern const char kAspectHardwareConcurrency[];
++BLINK_COMMON_EXPORT extern const char kAspectDeviceMemory[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenWidth[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenHeight[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenAvailWidth[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenAvailHeight[];
++BLINK_COMMON_EXPORT extern const char kAspectColorDepth[];
++BLINK_COMMON_EXPORT extern const char kAspectDevicePixelRatio[];
++BLINK_COMMON_EXPORT extern const char kAspectUaPlatform[];
++BLINK_COMMON_EXPORT extern const char kAspectUaPlatformVersion[];
++BLINK_COMMON_EXPORT extern const char kAspectUaArch[];
+ }  // namespace switches
+ }  // namespace blink
+ 
+-- 
+2.39.5
+

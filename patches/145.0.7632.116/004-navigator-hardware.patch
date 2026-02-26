@@ -1,0 +1,79 @@
+From 618fc123892a15b14d1c6999df487f6d7326bc9c Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Thu, 26 Feb 2026 10:29:38 +0000
+Subject: [PATCH 04/11] 004-navigator-hardware
+
+---
+ .../frame/navigator_concurrent_hardware.cc    | 12 +++++++++++
+ .../core/frame/navigator_device_memory.cc     | 20 +++++++++++++++++++
+ 2 files changed, 32 insertions(+)
+
+diff --git a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+index f5c0db2d1b58d..ff2a9541212e4 100644
+--- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
++++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+@@ -4,11 +4,23 @@
+ 
+ #include "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.h"
+ 
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
++
+ #include "base/system/sys_info.h"
+ 
+ namespace blink {
+ 
+ unsigned NavigatorConcurrentHardware::hardwareConcurrency() const {
++  const auto& cmd = *base::CommandLine::ForCurrentProcess();
++  if (cmd.HasSwitch(blink::switches::kAspectHardwareConcurrency)) {
++    unsigned val = 0;
++    if (base::StringToUint(
++            cmd.GetSwitchValueASCII(blink::switches::kAspectHardwareConcurrency),
++            &val) && val > 0)
++      return val;
++  }
+   return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
+ }
+ 
+diff --git a/third_party/blink/renderer/core/frame/navigator_device_memory.cc b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+index 05fa33e4568e8..f27b6b6858e91 100644
+--- a/third_party/blink/renderer/core/frame/navigator_device_memory.cc
++++ b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+@@ -4,6 +4,12 @@
+ 
+ #include "third_party/blink/renderer/core/frame/navigator_device_memory.h"
+ 
++#include <array>
++
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
++
+ #include "third_party/blink/public/common/device_memory/approximated_device_memory.h"
+ #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
+ #include "third_party/blink/renderer/core/dom/document.h"
+@@ -12,6 +18,20 @@
+ namespace blink {
+ 
+ float NavigatorDeviceMemory::deviceMemory() const {
++  const auto& cmd = *base::CommandLine::ForCurrentProcess();
++  if (cmd.HasSwitch(blink::switches::kAspectDeviceMemory)) {
++    double val = 0;
++    if (base::StringToDouble(
++            cmd.GetSwitchValueASCII(blink::switches::kAspectDeviceMemory),
++            &val) && val > 0) {
++      constexpr std::array<float, 6> kAllowed = {0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
++      float fval = static_cast<float>(val);
++      for (float v : kAllowed) {
++        if (v == fval)
++          return fval;
++      }
++    }
++  }
+   return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
+ }
+ 
+-- 
+2.39.5
+
