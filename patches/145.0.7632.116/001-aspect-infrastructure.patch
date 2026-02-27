@@ -1,0 +1,174 @@
+From 309523c786a99b8d3839bfaac88fc3407efa25c9 Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Fri, 27 Feb 2026 21:00:13 +0000
+Subject: [PATCH 01/10] 001-aspect-infrastructure
+
+All shared infrastructure for Aspect browser fingerprinting:
+- 21 blink::switches declarations + definitions
+- 18 switches propagated to renderer via render_process_host_impl.cc
+- 2 proxy switches propagated to utility via chrome_content_browser_client.cc
+- Suppress bad-flags and API-keys infobars
+- Add .siso_failed_targets to .gitignore
+---
+ .gitignore                                    |  1 +
+ .../browser/chrome_content_browser_client.cc  |  6 ++++
+ chrome/browser/ui/startup/infobar_utils.cc    |  6 ++--
+ .../renderer_host/render_process_host_impl.cc | 19 +++++++++++++
+ third_party/blink/common/switches.cc          | 23 +++++++++++++++
+ third_party/blink/public/common/switches.h    | 28 +++++++++++++++++++
+ 6 files changed, 81 insertions(+), 2 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 4c61af331b827..e8733ff4d609b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -347,3 +347,4 @@ third_party/rust/target/
+ 
+ # Trace files created when using --trace-startup.
+ **/chrometrace.log
++.siso_failed_targets
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index b96e429ee3477..9c5cb1ab2307c 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -2950,6 +2950,12 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
+     command_line->CopySwitchesFrom(browser_command_line, kSwitchNames);
+ #endif
+     MaybeAppendSecureOriginsAllowlistSwitch(command_line);
++    // Aspect: propagate proxy auth switches to utility (network) process.
++    static const char* const kAspectProxySwitches[] = {
++        "aspect-proxy-username",
++        "aspect-proxy-password",
++    };
++    command_line->CopySwitchesFrom(browser_command_line, kAspectProxySwitches);
+   } else if (process_type == switches::kZygoteProcess) {
+ #if BUILDFLAG(IS_CHROMEOS)
+     // This is called before feature flags are parsed, so pass them in their raw
+diff --git a/chrome/browser/ui/startup/infobar_utils.cc b/chrome/browser/ui/startup/infobar_utils.cc
+index 04e26dadc8348..4663628d0b2db 100644
+--- a/chrome/browser/ui/startup/infobar_utils.cc
++++ b/chrome/browser/ui/startup/infobar_utils.cc
+@@ -173,14 +173,16 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+   }
+   infobars_shown = true;
+ 
+-  if (show_bad_flags_security_warnings) {
++  // Aspect: suppress bad flags infobar
++  if ((false) && show_bad_flags_security_warnings) {
+     ShowBadFlagsPrompt(web_contents);
+   }
+ 
+   infobars::ContentInfoBarManager* infobar_manager =
+       infobars::ContentInfoBarManager::FromWebContents(web_contents);
+ 
+-  if (!google_apis::HasAPIKeyConfigured()) {
++  // Aspect: suppress API keys infobar
++  if ((false) && !google_apis::HasAPIKeyConfigured()) {
+     GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
+   }
+ 
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index 2ad7efb8632ca..efb15041389f1 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -3794,6 +3794,25 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+       blink::switches::kShowPaintRects,
+       blink::switches::kTouchTextSelectionStrategy,
+       blink::switches::kJavaScriptFlags,
++      // Aspect: propagate fingerprint switches to renderer.
++      blink::switches::kAspectPlatform,
++      blink::switches::kAspectHardwareConcurrency,
++      blink::switches::kAspectDeviceMemory,
++      blink::switches::kAspectScreenWidth,
++      blink::switches::kAspectScreenHeight,
++      blink::switches::kAspectScreenAvailWidth,
++      blink::switches::kAspectScreenAvailHeight,
++      blink::switches::kAspectColorDepth,
++      blink::switches::kAspectDevicePixelRatio,
++      blink::switches::kAspectCanvasNoiseSeed,
++      blink::switches::kAspectWebglVendor,
++      blink::switches::kAspectWebglRenderer,
++      blink::switches::kAspectWebglParams,
++      blink::switches::kAspectWebglExtensions,
++      blink::switches::kAspectWebglPrecisionHigh,
++      blink::switches::kAspectWebglPrecisionMedium,
++      blink::switches::kAspectAudioNoiseSeed,
++      blink::switches::kAspectDomrectNoiseSeed,
+       // Please keep these in alphabetical order. Compositor switches here
+       // should also be added to
+       // chrome/browser/ash/login/chrome_restart_request.cc.
+diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
+index da8e6ff391773..002b2d95fac1d 100644
+--- a/third_party/blink/common/switches.cc
++++ b/third_party/blink/common/switches.cc
+@@ -160,5 +160,28 @@ const char kWebAudioBypassOutputBufferingOptOut[] =
+ // controlled by base features, but requires an enterprise policy override.
+ const char kDisableReduceAcceptLanguage[] = "disable-reduce-accept-language";
+ 
++// Aspect browser fingerprint switches.
++const char kAspectPlatform[] = "aspect-platform";
++const char kAspectHardwareConcurrency[] = "aspect-hardware-concurrency";
++const char kAspectDeviceMemory[] = "aspect-device-memory";
++const char kAspectScreenWidth[] = "aspect-screen-width";
++const char kAspectScreenHeight[] = "aspect-screen-height";
++const char kAspectScreenAvailWidth[] = "aspect-screen-avail-width";
++const char kAspectScreenAvailHeight[] = "aspect-screen-avail-height";
++const char kAspectColorDepth[] = "aspect-color-depth";
++const char kAspectDevicePixelRatio[] = "aspect-device-pixel-ratio";
++const char kAspectUaPlatform[] = "aspect-ua-platform";
++const char kAspectUaPlatformVersion[] = "aspect-ua-platform-version";
++const char kAspectUaArch[] = "aspect-ua-arch";
++const char kAspectCanvasNoiseSeed[] = "aspect-canvas-noise-seed";
++const char kAspectWebglVendor[] = "aspect-webgl-vendor";
++const char kAspectWebglRenderer[] = "aspect-webgl-renderer";
++const char kAspectWebglParams[] = "aspect-webgl-params";
++const char kAspectWebglExtensions[] = "aspect-webgl-extensions";
++const char kAspectWebglPrecisionHigh[] = "aspect-webgl-precision-high";
++const char kAspectWebglPrecisionMedium[] = "aspect-webgl-precision-medium";
++const char kAspectAudioNoiseSeed[] = "aspect-audio-noise-seed";
++const char kAspectDomrectNoiseSeed[] = "aspect-domrect-noise-seed";
++
+ }  // namespace switches
+ }  // namespace blink
+diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
+index 115125f5a170b..a68a51bbeb4ff 100644
+--- a/third_party/blink/public/common/switches.h
++++ b/third_party/blink/public/common/switches.h
+@@ -56,6 +56,34 @@ BLINK_COMMON_EXPORT extern const char kTouchTextSelectionStrategy_Direction[];
+ BLINK_COMMON_EXPORT extern const char kDisableStandardizedBrowserZoom[];
+ BLINK_COMMON_EXPORT extern const char kWebAudioBypassOutputBufferingOptOut[];
+ BLINK_COMMON_EXPORT extern const char kDisableReduceAcceptLanguage[];
++
++// Aspect browser fingerprint switches.
++// Navigator / screen / display:
++BLINK_COMMON_EXPORT extern const char kAspectPlatform[];
++BLINK_COMMON_EXPORT extern const char kAspectHardwareConcurrency[];
++BLINK_COMMON_EXPORT extern const char kAspectDeviceMemory[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenWidth[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenHeight[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenAvailWidth[];
++BLINK_COMMON_EXPORT extern const char kAspectScreenAvailHeight[];
++BLINK_COMMON_EXPORT extern const char kAspectColorDepth[];
++BLINK_COMMON_EXPORT extern const char kAspectDevicePixelRatio[];
++// Client-hints (browser-side only, NOT propagated to renderer):
++BLINK_COMMON_EXPORT extern const char kAspectUaPlatform[];
++BLINK_COMMON_EXPORT extern const char kAspectUaPlatformVersion[];
++BLINK_COMMON_EXPORT extern const char kAspectUaArch[];
++// Canvas / WebGL / Audio / DOMRect noise seeds:
++BLINK_COMMON_EXPORT extern const char kAspectCanvasNoiseSeed[];
++BLINK_COMMON_EXPORT extern const char kAspectWebglVendor[];
++BLINK_COMMON_EXPORT extern const char kAspectWebglRenderer[];
++BLINK_COMMON_EXPORT extern const char kAspectWebglParams[];
++BLINK_COMMON_EXPORT extern const char kAspectWebglExtensions[];
++BLINK_COMMON_EXPORT extern const char kAspectWebglPrecisionHigh[];
++BLINK_COMMON_EXPORT extern const char kAspectWebglPrecisionMedium[];
++BLINK_COMMON_EXPORT extern const char kAspectAudioNoiseSeed[];
++BLINK_COMMON_EXPORT extern const char kAspectDomrectNoiseSeed[];
++// Proxy auth: uses raw strings "aspect-proxy-username" / "aspect-proxy-password"
++// in net/ layer (which must not depend on blink/).
+ }  // namespace switches
+ }  // namespace blink
+ 
+-- 
+2.39.5
+

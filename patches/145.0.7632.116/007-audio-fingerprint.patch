@@ -1,0 +1,205 @@
+From f1eb100564319e36337b01080e86b561b111bbb8 Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Fri, 27 Feb 2026 21:19:39 +0000
+Subject: [PATCH 07/10] 007-audio-fingerprint
+
+Audio fingerprint noise via --aspect-audio-noise-seed:
+- AudioBuffer: gain-multiply noise on getChannelData/copyFromChannel
+- RealtimeAnalyser: additive offset noise on all 4 data methods
+- Fix O(n^2): noise block moved OUTSIDE per-sample loops
+- Fix seed parsing: use base::StringToUint64() instead of char-hash
+- Add noise to GetByte* methods (were unpatched before)
+---
+ .../renderer/modules/webaudio/audio_buffer.cc | 35 +++++++++++
+ .../renderer/modules/webaudio/audio_buffer.h  |  3 +
+ .../modules/webaudio/realtime_analyser.cc     | 60 +++++++++++++++++++
+ 3 files changed, 98 insertions(+)
+
+diff --git a/third_party/blink/renderer/modules/webaudio/audio_buffer.cc b/third_party/blink/renderer/modules/webaudio/audio_buffer.cc
+index 40a355dec4aad..4f19239d78c94 100644
+--- a/third_party/blink/renderer/modules/webaudio/audio_buffer.cc
++++ b/third_party/blink/renderer/modules/webaudio/audio_buffer.cc
+@@ -39,6 +39,10 @@
+ #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
+ #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+ #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
++#include <random>
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
+ 
+ namespace blink {
+ 
+@@ -212,6 +216,7 @@ NotShared<DOMFloat32Array> AudioBuffer::getChannelData(
+     return NotShared<DOMFloat32Array>(nullptr);
+   }
+ 
++  MaybeApplyAudioNoise();
+   return getChannelData(channel_index);
+ }
+ 
+@@ -250,6 +255,7 @@ void AudioBuffer::copyFromChannel(NotShared<DOMFloat32Array> destination,
+     return;
+   }
+ 
++  MaybeApplyAudioNoise();
+   base::span<const float> src = channels_[channel_number].Get()->AsSpan();
+   base::span<float> dst = destination->AsSpan();
+ 
+@@ -321,6 +327,35 @@ void AudioBuffer::Zero() {
+   }
+ }
+ 
++void AudioBuffer::MaybeApplyAudioNoise() {
++  if (audio_noise_applied_)
++    return;
++  audio_noise_applied_ = true;
++
++  auto* cmd = base::CommandLine::ForCurrentProcess();
++  if (!cmd->HasSwitch(blink::switches::kAspectAudioNoiseSeed))
++    return;
++
++  uint64_t base_seed = 0;
++  base::StringToUint64(
++      cmd->GetSwitchValueASCII(blink::switches::kAspectAudioNoiseSeed),
++      &base_seed);
++  if (base_seed == 0)
++    return;
++
++  uint64_t buffer_seed = base_seed ^ (static_cast<uint64_t>(length_) * 2654435761u)
++                                    ^ (static_cast<uint64_t>(channels_.size()) * 40503u);
++  std::mt19937_64 rng(buffer_seed);
++  double gain = 1.0 - static_cast<double>(rng() % 1000 + 1) * 1e-10;
++
++  for (unsigned ch = 0; ch < channels_.size(); ++ch) {
++    base::span<float> data = channels_[ch].Get()->AsSpan();
++    for (size_t i = 0; i < data.size(); ++i) {
++      data[i] = static_cast<float>(static_cast<double>(data[i]) * gain);
++    }
++  }
++}
++
+ std::unique_ptr<SharedAudioBuffer> AudioBuffer::CreateSharedAudioBuffer() {
+   return std::make_unique<SharedAudioBuffer>(this);
+ }
+diff --git a/third_party/blink/renderer/modules/webaudio/audio_buffer.h b/third_party/blink/renderer/modules/webaudio/audio_buffer.h
+index 2e798e3e5bae7..076d862376ce5 100644
+--- a/third_party/blink/renderer/modules/webaudio/audio_buffer.h
++++ b/third_party/blink/renderer/modules/webaudio/audio_buffer.h
+@@ -116,6 +116,9 @@ class MODULES_EXPORT AudioBuffer final : public ScriptWrappable {
+   std::unique_ptr<SharedAudioBuffer> CreateSharedAudioBuffer();
+ 
+  private:
++  void MaybeApplyAudioNoise();
++  bool audio_noise_applied_ = false;
++
+   static DOMFloat32Array* CreateFloat32ArrayOrNull(
+       uint32_t length,
+       InitializationPolicy allocation_policy =
+diff --git a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
+index dc68f422ce8af..d331093f998a8 100644
+--- a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
++++ b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
+@@ -37,11 +37,31 @@
+ #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
+ #include "third_party/blink/renderer/platform/audio/vector_math.h"
+ #include "third_party/blink/renderer/platform/wtf/math_extras.h"
++#include <random>
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
+ 
+ namespace blink {
+ 
+ namespace {
+ 
++uint64_t GetAudioNoiseSeed() {
++  static const uint64_t seed = []() -> uint64_t {
++    uint64_t s = 0;
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch(blink::switches::kAspectAudioNoiseSeed))
++      base::StringToUint64(
++          cmd->GetSwitchValueASCII(blink::switches::kAspectAudioNoiseSeed), &s);
++    return s;
++  }();
++  return seed;
++}
++
++}  // namespace
++
++namespace {
++
+ constexpr unsigned kDefaultFFTSize = 2048;
+ constexpr unsigned kInputBufferSize = RealtimeAnalyser::kMaxFFTSize * 2;
+ 
+@@ -120,6 +140,15 @@ void RealtimeAnalyser::GetFloatFrequencyData(DOMFloat32Array* destination_array,
+       const double db_mag = audio_utilities::LinearToDecibels(linear_value);
+       UNSAFE_TODO(destination[i]) = static_cast<float>(db_mag);
+     }
++
++    uint64_t audio_seed = GetAudioNoiseSeed();
++    if (audio_seed != 0) {
++      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2654435761u));
++      float offset = static_cast<float>(rng() % 1000 + 1) * 1e-7f;
++      for (unsigned j = 0; j < len; ++j) {
++        UNSAFE_TODO(destination[j]) += offset;
++      }
++    }
+   }
+ }
+ 
+@@ -163,6 +192,17 @@ void RealtimeAnalyser::GetByteFrequencyData(DOMUint8Array* destination_array,
+       UNSAFE_TODO(destination[i]) =
+           static_cast<unsigned char>(ClampTo(scaled_value, 0, UCHAR_MAX));
+     }
++
++    uint64_t audio_seed = GetAudioNoiseSeed();
++    if (audio_seed != 0) {
++      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2246822519u));
++      int byte_offset = static_cast<int>(rng() % 3 + 1);
++      for (unsigned j = 0; j < len; ++j) {
++        int v = static_cast<int>(UNSAFE_TODO(destination[j])) + byte_offset;
++        UNSAFE_TODO(destination[j]) =
++            static_cast<unsigned char>(ClampTo(v, 0, UCHAR_MAX));
++      }
++    }
+   }
+ }
+ 
+@@ -191,6 +231,15 @@ void RealtimeAnalyser::GetFloatTimeDomainData(
+ 
+       UNSAFE_TODO(destination[i]) = value;
+     }
++
++    uint64_t audio_seed = GetAudioNoiseSeed();
++    if (audio_seed != 0) {
++      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2246822519u));
++      float offset = static_cast<float>(rng() % 1000 + 1) * 1e-7f;
++      for (unsigned j = 0; j < len; ++j) {
++        UNSAFE_TODO(destination[j]) += offset;
++      }
++    }
+   }
+ }
+ 
+@@ -223,6 +272,17 @@ void RealtimeAnalyser::GetByteTimeDomainData(DOMUint8Array* destination_array) {
+       UNSAFE_TODO(destination[i]) =
+           static_cast<unsigned char>(ClampTo(scaled_value, 0, UCHAR_MAX));
+     }
++
++    uint64_t audio_seed = GetAudioNoiseSeed();
++    if (audio_seed != 0) {
++      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2654435761u));
++      int byte_offset = static_cast<int>(rng() % 3 + 1);
++      for (unsigned j = 0; j < len; ++j) {
++        int v = static_cast<int>(UNSAFE_TODO(destination[j])) + byte_offset;
++        UNSAFE_TODO(destination[j]) =
++            static_cast<unsigned char>(ClampTo(v, 0, UCHAR_MAX));
++      }
++    }
+   }
+ }
+ 
+-- 
+2.39.5
+

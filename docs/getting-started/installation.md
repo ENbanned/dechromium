@@ -5,6 +5,11 @@
 pip install dechromium
 ```
 
+Verify:
+```bash
+python -c "from dechromium import Dechromium; print('OK')"
+```
+
 With REST API server:
 ```bash
 pip install dechromium[server]
@@ -16,7 +21,7 @@ The library requires a patched Chromium binary. Two options:
 
 ### Option 1: Download prebuilt (recommended)
 
-Download from [GitHub Releases](https://github.com/aspect-browser/dechromium/releases) and extract:
+Download from [GitHub Releases](https://github.com/ENbanned/dechromium/releases) and extract:
 ```bash
 mkdir -p ~/.dechromium/browser
 tar xzf dechromium-browser-145.0.7632.116-linux-x64.tar.gz -C ~/.dechromium/browser/

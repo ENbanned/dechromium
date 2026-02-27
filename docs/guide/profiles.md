@@ -6,14 +6,17 @@ A profile is a complete browser identity — user agent, hardware specs, WebGL c
 
 The `platform` parameter is the easiest way to create a consistent profile:
 ```python
-profile = dc.create("work", platform="windows")
+from dechromium import Dechromium, Platform
+
+dc = Dechromium()
+profile = dc.create("work", platform=Platform.WINDOWS)
 ```
 
 | Platform | navigator.platform | WebGL renderer | Fonts |
 |---|---|---|---|
-| `windows` | `Win32` | NVIDIA RTX 3060 / D3D11 | Arial, Times New Roman, Courier New, etc. |
-| `macos` | `MacIntel` | Apple M1 / OpenGL | Helvetica Neue, Times New Roman, Courier New |
-| `linux` | `Linux x86_64` | Mesa / llvmpipe / OpenGL | DejaVu Sans, DejaVu Serif, DejaVu Sans Mono |
+| `Platform.WINDOWS` | `Win32` | NVIDIA RTX 3060 / D3D11 | Arial, Times New Roman, Courier New, etc. |
+| `Platform.MACOS` | `MacIntel` | Apple M1 / OpenGL | Helvetica Neue, Times New Roman, Courier New |
+| `Platform.LINUX` | `Linux x86_64` | Mesa / llvmpipe / OpenGL | DejaVu Sans, DejaVu Serif, DejaVu Sans Mono |
 
 Presets set `identity`, `webgl`, and `fonts` together. You can override any individual field on top of a preset.
 
@@ -36,20 +39,22 @@ dc.create("x", identity={
 
 ### Hardware
 ```python
+from dechromium import DeviceMemory, ColorDepth
+
 dc.create("x", hardware={
-    "cores": 4,                # navigator.hardwareConcurrency
-    "memory_gb": 4,            # navigator.deviceMemory (0.25, 0.5, 1, 2, 4, or 8)
-    "screen_width": 1920,      # screen.width
-    "screen_height": 1080,     # screen.height
-    "avail_width": 1920,       # screen.availWidth
-    "avail_height": 1040,      # screen.availHeight
-    "device_pixel_ratio": 1.0, # window.devicePixelRatio
-    "color_depth": 24,         # screen.colorDepth
+    "cores": 4,                # navigator.hardwareConcurrency (1-32)
+    "memory": DeviceMemory.GB_4,  # navigator.deviceMemory
+    "screen_width": 1920,      # screen.width (800-3840)
+    "screen_height": 1080,     # screen.height (600-2160)
+    "avail_width": 1920,       # screen.availWidth (auto if omitted)
+    "avail_height": 1040,      # screen.availHeight (auto if omitted)
+    "color_depth": ColorDepth.BIT_24,  # screen.colorDepth
+    "pixel_ratio": 1.0,        # window.devicePixelRatio (1.0-3.0)
 })
 ```
 
 !!! warning
-    `memory_gb` must be one of `0.25, 0.5, 1, 2, 4, 8`. Chrome only returns these values — anything else is an instant detection flag.
+    `memory` must be a valid `DeviceMemory` value: `0.25, 0.5, 1, 2, 4, 8`. Chrome only returns these values — anything else is an instant detection flag.
 
 ### WebGL
 ```python
@@ -91,7 +96,9 @@ See [Proxy & Network](network.md) for details.
 
 ### Fonts
 ```python
-dc.create("x", fonts={"font_pack": "windows"})
+from dechromium import FontPack
+
+dc.create("x", fonts={"font_pack": FontPack.WINDOWS})
 ```
 
 Font packs are directories of .ttf files. Each profile gets its own fontconfig configuration that only exposes fonts from the selected pack.

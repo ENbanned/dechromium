@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from urllib.parse import urlparse
+
+from dechromium._config import Config
+from dechromium.models import Profile
+
+
+def build_launch_args(profile: Profile, config: Config) -> list[str]:
+    """Build Chrome command-line arguments for a profile."""
+    net = profile.network
+    hw = profile.hardware
+    ident = profile.identity
+    wgl = profile.webgl
+    langs = ",".join(net.languages)
+    data_dir = config.profiles_dir / profile.id / "chrome_data"
+
+    args = [
+        str(config.browser_bin),
+        f"--user-data-dir={data_dir}",
+        f"--user-agent={ident.user_agent}",
+        f"--lang={net.locale}",
+        f"--accept-lang={langs}",
+        f"--window-size={hw.screen_width},{hw.screen_height}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-features=AsyncDns,DnsOverHttps,DnsHttpssvc",
+        "--dns-over-https-mode=off",
+        "--disable-domain-reliability",
+        "--disable-background-networking",
+        "--no-pings",
+    ]
+
+    if net.proxy:
+        args.append(f"--proxy-server={net.proxy}")
+        proxy_host = urlparse(net.proxy).hostname or ""
+        resolver_rules = f"MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE {proxy_host}"
+        args.append(f"--host-resolver-rules={resolver_rules}")
+        args.append(f"--force-webrtc-ip-handling-policy={net.webrtc_policy.value}")
+        if net.proxy_username:
+            args.append(f"--aspect-proxy-username={net.proxy_username}")
+        if net.proxy_password:
+            args.append(f"--aspect-proxy-password={net.proxy_password}")
+
+    canvas_seed = int(profile.noise.canvas_seed, 16)
+    audio_seed = int(profile.noise.audio_seed, 16)
+    domrect_seed = int(profile.noise.clientrects_seed, 16)
+
+    args.extend(
+        [
+            f"--aspect-platform={ident.platform}",
+            f"--aspect-hardware-concurrency={hw.cores}",
+            f"--aspect-device-memory={float(hw.memory)}",
+            f"--aspect-screen-width={hw.screen_width}",
+            f"--aspect-screen-height={hw.screen_height}",
+            f"--aspect-screen-avail-width={hw.avail_width}",
+            f"--aspect-screen-avail-height={hw.avail_height}",
+            f"--aspect-color-depth={int(hw.color_depth)}",
+            f"--aspect-device-pixel-ratio={hw.pixel_ratio}",
+            f"--aspect-ua-platform={ident.ua_platform}",
+            f"--aspect-ua-platform-version={ident.ua_platform_version}",
+            f"--aspect-ua-arch={ident.ua_arch}",
+            f"--aspect-canvas-noise-seed={canvas_seed}",
+            f"--aspect-audio-noise-seed={audio_seed}",
+            f"--aspect-domrect-noise-seed={domrect_seed}",
+            f"--aspect-webgl-vendor={wgl.vendor}",
+            f"--aspect-webgl-renderer={wgl.renderer}",
+        ]
+    )
+
+    if wgl.params:
+        pairs = []
+        for enum_hex, val in wgl.params.items():
+            if isinstance(val, list):
+                pairs.append(f"{enum_hex}:{'/'.join(str(v) for v in val)}")
+            else:
+                pairs.append(f"{enum_hex}:{val}")
+        args.append(f"--aspect-webgl-params={','.join(pairs)}")
+
+    if wgl.extensions:
+        args.append(f"--aspect-webgl-extensions={','.join(wgl.extensions)}")
+
+    if wgl.shader_precision_high:
+        args.append(
+            f"--aspect-webgl-precision-high="
+            f"{wgl.shader_precision_high[0]},"
+            f"{wgl.shader_precision_high[1]},"
+            f"{wgl.shader_precision_high[2]}"
+        )
+    if wgl.shader_precision_medium:
+        args.append(
+            f"--aspect-webgl-precision-medium="
+            f"{wgl.shader_precision_medium[0]},"
+            f"{wgl.shader_precision_medium[1]},"
+            f"{wgl.shader_precision_medium[2]}"
+        )
+
+    return args
+
+
+def build_launch_env(profile: Profile, config: Config) -> dict[str, str]:
+    """Build environment variables for launching Chrome."""
+    fonts_conf = config.profiles_dir / profile.id / "fonts.conf"
+    posix_locale = profile.network.locale.replace("-", "_") + ".UTF-8"
+    return {
+        "FONTCONFIG_FILE": str(fonts_conf),
+        "TZ": profile.network.timezone,
+        "LANG": posix_locale,
+    }

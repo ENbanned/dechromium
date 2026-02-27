@@ -34,12 +34,12 @@ WebRTC is restricted to prevent IP leaks:
 
 Available policies:
 
-| Policy | Description |
-|---|---|
-| `default` | No restrictions |
-| `default_public_and_private_interfaces` | Use default route + associated interfaces |
-| `default_public_interface_only` | Only default route |
-| `disable_non_proxied_udp` | Force UDP through proxy (default) |
+| Policy | Enum | Description |
+|---|---|---|
+| `default` | `WebRTCPolicy.DEFAULT` | No restrictions |
+| `default_public_and_private_interfaces` | `WebRTCPolicy.DEFAULT_PUBLIC_AND_PRIVATE` | Use default route + associated interfaces |
+| `default_public_interface_only` | `WebRTCPolicy.DEFAULT_PUBLIC_INTERFACE_ONLY` | Only default route |
+| `disable_non_proxied_udp` | `WebRTCPolicy.DISABLE_NON_PROXIED_UDP` | Force UDP through proxy (default) |
 
 ## Timezone
 ```python

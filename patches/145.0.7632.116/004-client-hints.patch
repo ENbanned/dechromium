@@ -1,0 +1,75 @@
+From 2ceffc1977f4335e96a7acd7ed8d1187776a6f48 Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Fri, 27 Feb 2026 21:01:53 +0000
+Subject: [PATCH 04/10] 004-client-hints
+
+Client Hints (Sec-CH-UA) spoofing via user_agent_utils.cc:
+- Override platform, platformVersion, architecture in UA metadata
+- Bypass early-return guards when aspect switches are present
+---
+ .../embedder_support/user_agent_utils.cc      | 23 +++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
+index e77a993b3c467..e2aeeb90bc53a 100644
+--- a/components/embedder_support/user_agent_utils.cc
++++ b/components/embedder_support/user_agent_utils.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "components/embedder_support/user_agent_utils.h"
++#include "third_party/blink/public/common/switches.h"
+ 
+ #include <stdint.h>
+ 
+@@ -657,6 +658,12 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+       GetUserAgentBrandMajorVersionListInternal(std::nullopt);
+   metadata.mobile = GetMobileBitForUAMetadata();
+   metadata.platform = GetPlatformForUAMetadata();
++  {
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch(blink::switches::kAspectUaPlatform))
++      metadata.platform =
++          cmd->GetSwitchValueASCII(blink::switches::kAspectUaPlatform);
++  }
+ 
+   // For users providing a valid user-agent override via the command line:
+   // If kUACHOverrideBlank is enabled, set user-agent metadata with the
+@@ -665,13 +672,16 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+   // Notes: Sending low entropy hints with empty values may cause requests being
+   // blocked by web application firewall software, etc.
+   std::optional<std::string> custom_ua = GetUserAgentFromCommandLine();
+-  if (custom_ua.has_value()) {
++  bool has_aspect =
++      base::CommandLine::ForCurrentProcess()->HasSwitch(
++          blink::switches::kAspectUaPlatform);
++  if (custom_ua.has_value() && !has_aspect) {
+     return base::FeatureList::IsEnabled(blink::features::kUACHOverrideBlank)
+                ? blink::UserAgentMetadata()
+                : metadata;
+   }
+ 
+-  if (only_low_entropy_ch) {
++  if (only_low_entropy_ch && !has_aspect) {
+     return metadata;
+   }
+ 
+@@ -685,6 +695,15 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+   metadata.bitness = GetCpuBitness();
+   metadata.wow64 = IsWoW64();
+   metadata.platform_version = GetPlatformVersion();
++  {
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch(blink::switches::kAspectUaPlatformVersion))
++      metadata.platform_version =
++          cmd->GetSwitchValueASCII(blink::switches::kAspectUaPlatformVersion);
++    if (cmd->HasSwitch(blink::switches::kAspectUaArch))
++      metadata.architecture =
++          cmd->GetSwitchValueASCII(blink::switches::kAspectUaArch);
++  }
+   return metadata;
+ }
+ 
+-- 
+2.39.5
+

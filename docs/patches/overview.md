@@ -14,11 +14,10 @@ Patches are stored in `patches/{chromium_version}/` as git format-patch files. E
 | 004 | `navigator-hardware` | `navigator.hardwareConcurrency` and `navigator.deviceMemory` from switches, with whitelist validation for deviceMemory |
 | 005 | `screen-display` | Screen dimensions, color depth, DPR — patched at `WidgetBase::UpdateSurfaceAndScreenInfo()` level, covers both JS API and CSS media queries |
 | 006 | `client-hints` | Overrides `GetUserAgentMetadata()` — single point covers both HTTP headers (Sec-CH-UA-*) and JS API (navigator.userAgentData) |
-| 007 | `canvas-noise` | Deterministic noise in `ImageDataBuffer` and `getImageData()` — covers toDataURL, toBlob, convertToBlob, getImageData |
-| 008 | `webgl-spoofing` | Overrides `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` in getParameter() — covers WebGL 1 and 2 |
-| 009 | `audio-fingerprinting` | Noise in AudioBuffer.getChannelData(), copyFromChannel(), and all AnalyserNode getter methods |
-| 010 | `proxy-system` | SOCKS5 RFC 1929 auth in C++, HTTP proxy auto-auth, switch propagation to network utility process |
-| 011 | `font-strict-match` | Blocks fontconfig substitution — if the requested font isn't installed, returns null instead of a substitute |
+| 007 | `webgl-fingerprint` | Overrides `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` in getParameter(), WebGL params, extensions, and shader precision — covers WebGL 1 and 2 |
+| 008 | `audio-fingerprint` | Noise in AudioBuffer.getChannelData(), copyFromChannel(), and all AnalyserNode getter methods |
+| 009 | `network-privacy` | SOCKS5 RFC 1929 auth in C++, HTTP proxy auto-auth, DNS-over-HTTPS control, switch propagation to network utility process |
+| 010 | `font-control` | Per-profile fontconfig via `FONTCONFIG_FILE`, blocks fontconfig substitution — if the requested font isn't installed, returns null instead of a substitute |
 
 ## What's NOT patched (and why)
 
@@ -40,7 +39,7 @@ Some switches need to be **propagated** to child processes:
 
 Each patch file is a standard `git format-patch` output. You can read them directly:
 ```bash
-cat patches/145.0.7632.116/007-canvas-noise.patch
+cat patches/145.0.7632.116/007-webgl-fingerprint.patch
 ```
 
 Or apply them and browse the code:

@@ -1,7 +1,7 @@
 site_name: dechromium
 site_description: Anti-detect browser built on Chromium
-repo_url: https://github.com/aspect-browser/dechromium
-repo_name: aspect-browser/dechromium
+repo_url: https://github.com/ENbanned/dechromium
+repo_name: ENbanned/dechromium
 
 theme:
   name: material
@@ -28,15 +28,19 @@ nav:
   - Getting Started:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
-  - Guide:
+  - User Guide:
     - Profiles: guide/profiles.md
-    - Browser Management: guide/browser.md
+    - Browser: guide/browser.md
     - Proxy & Network: guide/network.md
-    - REST API: guide/rest-api.md
     - Cookies: guide/cookies.md
-  - Patches:
-    - Overview: patches/overview.md
-    - Building from Source: patches/building.md
+    - REST API: guide/rest-api.md
+  - Reference:
+    - Configuration: reference/configuration.md
+    - Models & Enums: reference/models.md
+    - Exceptions: reference/exceptions.md
+  - Building Chromium:
+    - Patch Overview: patches/overview.md
+    - Build Guide: patches/building.md
   - Changelog: changelog.md
 
 markdown_extensions:

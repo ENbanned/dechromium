@@ -1,0 +1,159 @@
+From da70f4f4344db2a1bdbb47e3509b2bc6e1abd3dc Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Fri, 27 Feb 2026 21:19:45 +0000
+Subject: [PATCH 08/10] 008-domrect-noise
+
+DOMRect fingerprint noise via --aspect-domrect-noise-seed:
+- Element: getClientRects() and getBoundingClientRect()
+- Range: getClientRects() and getBoundingClientRect()
+- Deterministic sub-pixel offset based on seed
+---
+ .../blink/renderer/core/dom/element.cc        | 38 +++++++++++++++++-
+ third_party/blink/renderer/core/dom/range.cc  | 40 ++++++++++++++++++-
+ 2 files changed, 76 insertions(+), 2 deletions(-)
+
+diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/renderer/core/dom/element.cc
+index e57e5fbcf9c5e..5dd4f8661c74c 100644
+--- a/third_party/blink/renderer/core/dom/element.cc
++++ b/third_party/blink/renderer/core/dom/element.cc
+@@ -29,6 +29,11 @@
+ #include <algorithm>
+ #include <bitset>
+ #include <limits>
++#include <random>
++
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
+ #include <memory>
+ #include <utility>
+ 
+@@ -3412,6 +3417,24 @@ void Element::ClientQuads(Vector<gfx::QuadF>& quads) const {
+   }
+ }
+ 
++namespace {
++double AspectDomrectNoise(uint64_t seed, int component) {
++  std::mt19937_64 rng(seed ^ static_cast<uint64_t>(component) * 2654435761u);
++  return (static_cast<double>(rng() % 2001) - 1000.0) * 1e-7;
++}
++uint64_t AspectGetDomrectSeed() {
++  static const uint64_t s = []() -> uint64_t {
++    uint64_t v = 0;
++    const auto& cmd = *base::CommandLine::ForCurrentProcess();
++    if (cmd.HasSwitch(blink::switches::kAspectDomrectNoiseSeed))
++      base::StringToUint64(
++          cmd.GetSwitchValueASCII(blink::switches::kAspectDomrectNoiseSeed), &v);
++    return v;
++  }();
++  return s;
++}
++}  // namespace
++
+ DOMRectList* Element::getClientRects() {
+   Vector<gfx::RectF> rects = GetClientRectsNoAdjustment();
+   if (rects.empty()) {
+@@ -3423,6 +3446,13 @@ DOMRectList* Element::getClientRects() {
+     GetDocument().AdjustRectForScrollAndAbsoluteZoom(rect,
+                                                      *element_layout_object);
+   }
++  uint64_t seed = AspectGetDomrectSeed();
++  if (seed != 0) {
++    for (auto& rect : rects) {
++      rect.Offset(static_cast<float>(AspectDomrectNoise(seed, 0)),
++                   static_cast<float>(AspectDomrectNoise(seed, 1)));
++    }
++  }
+   return MakeGarbageCollected<DOMRectList>(rects);
+ }
+ 
+@@ -3475,7 +3505,13 @@ gfx::RectF Element::GetBoundingClientRectNoLifecycleUpdate() const {
+ DOMRect* Element::GetBoundingClientRect() {
+   GetDocument().EnsurePaintLocationDataValidForNode(
+       this, DocumentUpdateReason::kJavaScript);
+-  return DOMRect::FromRectF(GetBoundingClientRectNoLifecycleUpdate());
++  gfx::RectF r = GetBoundingClientRectNoLifecycleUpdate();
++  uint64_t seed = AspectGetDomrectSeed();
++  if (seed != 0 && r != gfx::RectF()) {
++    r.Offset(static_cast<float>(AspectDomrectNoise(seed, 0)),
++             static_cast<float>(AspectDomrectNoise(seed, 1)));
++  }
++  return DOMRect::FromRectF(r);
+ }
+ 
+ DOMRect* Element::GetBoundingClientRectForBinding() {
+diff --git a/third_party/blink/renderer/core/dom/range.cc b/third_party/blink/renderer/core/dom/range.cc
+index a9e08db4dc297..fb0375a657019 100644
+--- a/third_party/blink/renderer/core/dom/range.cc
++++ b/third_party/blink/renderer/core/dom/range.cc
+@@ -25,6 +25,11 @@
+ 
+ #include "third_party/blink/renderer/core/dom/range.h"
+ 
++#include <random>
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
++
+ #include "third_party/blink/renderer/core/display_lock/display_lock_document_state.h"
+ #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
+ #include "third_party/blink/renderer/core/dom/character_data.h"
+@@ -1645,6 +1650,24 @@ void Range::expand(const String& unit, ExceptionState& exception_state) {
+          end.DeepEquivalent().ComputeOffsetInContainerNode(), exception_state);
+ }
+ 
++namespace {
++double AspectRangeDomrectNoise(uint64_t seed, int component) {
++  std::mt19937_64 rng(seed ^ static_cast<uint64_t>(component) * 2654435761u);
++  return (static_cast<double>(rng() % 2001) - 1000.0) * 1e-7;
++}
++uint64_t AspectGetRangeDomrectSeed() {
++  static const uint64_t s = []() -> uint64_t {
++    uint64_t v = 0;
++    const auto& cmd = *base::CommandLine::ForCurrentProcess();
++    if (cmd.HasSwitch(blink::switches::kAspectDomrectNoiseSeed))
++      base::StringToUint64(
++          cmd.GetSwitchValueASCII(blink::switches::kAspectDomrectNoiseSeed), &v);
++    return v;
++  }();
++  return s;
++}
++}  // namespace
++
+ DOMRectList* Range::getClientRects() const {
+   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
+   // impact is understood.
+@@ -1656,6 +1679,15 @@ DOMRectList* Range::getClientRects() const {
+   Vector<gfx::QuadF> quads;
+   GetBorderAndTextQuads(quads);
+ 
++  uint64_t seed = AspectGetRangeDomrectSeed();
++  if (seed != 0) {
++    float dx = static_cast<float>(AspectRangeDomrectNoise(seed, 0));
++    float dy = static_cast<float>(AspectRangeDomrectNoise(seed, 1));
++    for (auto& quad : quads) {
++      quad += gfx::Vector2dF(dx, dy);
++    }
++  }
++
+   return MakeGarbageCollected<DOMRectList>(quads);
+ }
+ 
+@@ -1663,7 +1695,13 @@ DOMRect* Range::getBoundingClientRect() const {
+   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
+   // impact is understood.
+   SyncScrollAttemptHeuristic::DidAccessScrollOffset();
+-  return DOMRect::FromRectF(BoundingRect());
++  gfx::RectF r = BoundingRect();
++  uint64_t seed = AspectGetRangeDomrectSeed();
++  if (seed != 0 && r != gfx::RectF()) {
++    r.Offset(static_cast<float>(AspectRangeDomrectNoise(seed, 0)),
++             static_cast<float>(AspectRangeDomrectNoise(seed, 1)));
++  }
++  return DOMRect::FromRectF(r);
+ }
+ 
+ // TODO(editing-dev): We should make
+-- 
+2.39.5
+

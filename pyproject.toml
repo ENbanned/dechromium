@@ -1,47 +1,54 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "dechromium"
-version = "0.1.0"
+version = "0.2.0"
 description = "Anti-detect browser built on Chromium"
-readme = "README.md"
+authors = [{ name = "ENbanned" }]
 license = "MIT"
+readme = "README.md"
 requires-python = ">=3.11"
 keywords = ["browser", "chromium", "anti-detect", "fingerprint"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
 ]
-dependencies = [
-    "pydantic>=2.0",
-]
+dependencies = ["pydantic>=2.0"]
 
 [project.optional-dependencies]
-server = [
-    "fastapi>=0.100",
-    "uvicorn>=0.20",
-]
-dev = [
-    "pytest>=8.0",
-    "ruff>=0.8",
-]
+server = ["fastapi>=0.100", "uvicorn>=0.20"]
+
+[project.urls]
+Homepage = "https://github.com/ENbanned/dechromium"
+Documentation = "https://enbanned.github.io/dechromium/"
+Repository = "https://github.com/ENbanned/dechromium"
+Issues = "https://github.com/ENbanned/dechromium/issues"
+Changelog = "https://github.com/ENbanned/dechromium/blob/main/CHANGELOG.md"
 
 [project.scripts]
-dechromium = "dechromium.__main__:main"
+dechromium = "dechromium._cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dechromium"]
 
 [tool.ruff]
+line-length = 99
 target-version = "py311"
-line-length = 100
+src = ["src"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.8"]

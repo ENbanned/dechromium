@@ -21,12 +21,12 @@ Every spoofing mechanism is implemented in C++ inside Chromium itself:
 
 ## Quick example
 ```python
-from dechromium import Dechromium
+from dechromium import Dechromium, Platform
 
 dc = Dechromium()
 
 profile = dc.create("my-profile",
-    platform="windows",
+    platform=Platform.WINDOWS,
     proxy="socks5://user:pass@host:1080",
     timezone="America/New_York",
 )
@@ -40,7 +40,7 @@ dc.stop(profile.id)
 
 | Directory | Contents |
 |---|---|
-| `dechromium/` | Python package — profile management, browser lifecycle, REST API |
+| `src/dechromium/` | Python package — profile management, browser lifecycle, REST API |
 | `patches/` | Chromium patches organized by version (e.g. `patches/145.0.7632.116/`) |
 | `fonts/` | Font packs per platform (windows, linux, macos) |
 | `build/` | Shell scripts for patching and building Chromium |
