@@ -170,19 +170,91 @@ dechromium uninstall VERSION             Remove installed browser
 
 The interface between the library and Chromium is the set of `--aspect-*` flags in `profile/_launcher.py`.
 
-## Porting patches to new Chromium
+## Patch workflow
+
+All patch scripts require `CHROMIUM_SRC` env var. Patches live in `patches/<version>/` as numbered `.patch` files (e.g. `001-aspect-infrastructure.patch`). In chromium/src, patches are commits on the `aspect` branch on top of the upstream version tag.
+
+### Apply existing patches to a clean checkout
 
 ```bash
-# In the chromium/src checkout:
-git fetch --tags
-git checkout NEW_VERSION_TAG
-git cherry-pick <patch-commits>   # or rebase the aspect branch
-# Fix conflicts, test, then export:
-cd /path/to/dechromium
-bash build/export_patches.sh
+export CHROMIUM_SRC="/data/development/BROWSER/chromium/src"
+bash build/apply_patches.sh 145.0.7632.116
 ```
 
-Patches are numbered `001-name.patch` through `NNN-name.patch` under `patches/VERSION/`.
+This does: `git checkout -B aspect <tag>` → `git am patches/<version>/*.patch`. After this, `aspect` branch has all patches applied as individual commits.
+
+### Create a new patch
+
+1. Make sure you're on the `aspect` branch in chromium/src
+2. Edit Chromium source files as needed
+3. Create the patch commit:
+   ```bash
+   bash build/new_patch.sh 011-my-new-feature
+   ```
+   This runs `git add -A && git commit -m "011-my-new-feature"`.
+4. Export to patch files:
+   ```bash
+   bash build/export_patches.sh 145.0.7632.116
+   ```
+   This runs `git format-patch <tag>..aspect` → renames to `NNN-name.patch` → saves to `patches/<version>/`.
+5. Build and test, then commit the new `.patch` file to the dechromium repo.
+
+### Edit an existing patch
+
+```bash
+bash build/edit_patch.sh 145.0.7632.116
+```
+
+Opens `git rebase -i <tag>`. Mark the target commit as `edit`, make changes, `git rebase --continue`. Then re-export:
+
+```bash
+bash build/export_patches.sh 145.0.7632.116
+```
+
+### Port patches to a new Chromium version
+
+```bash
+cd $CHROMIUM_SRC
+
+# Fetch the new version tag
+git fetch origin
+git checkout <NEW_VERSION_TAG>
+
+# Create new aspect branch and cherry-pick existing patches
+git checkout -b aspect
+git cherry-pick <commit1> <commit2> ...
+# Or: rebase the old aspect branch onto the new tag
+# git rebase --onto <NEW_TAG> <OLD_TAG> aspect
+
+# Fix any conflicts, build, test
+
+# Export as new patch set
+cd /data/development/BROWSER/dechromium
+mkdir -p patches/<NEW_VERSION>
+bash build/export_patches.sh <NEW_VERSION>
+
+# Build, package, release
+python build/build_chromium.py --platform all
+python build/package.py --version <NEW_VERSION> --platform all
+python build/release.py --version <NEW_VERSION>
+```
+
+### Patch naming convention
+
+Patches are numbered `001-name.patch` through `NNN-name.patch`. The number determines apply order. Names describe the feature area:
+
+| Patch | Area |
+|-------|------|
+| 001-aspect-infrastructure | Core `--aspect-*` flag parsing |
+| 002-navigator-spoofing | navigator.userAgent, platform, etc. |
+| 003-screen-display | screen.width/height, devicePixelRatio |
+| 004-client-hints | User-Agent Client Hints headers |
+| 005-canvas-fingerprint | Canvas noise injection |
+| 006-webgl-fingerprint | WebGL renderer/vendor spoofing |
+| 007-audio-fingerprint | AudioContext fingerprint noise |
+| 008-domrect-noise | DOMRect/getBoundingClientRect noise |
+| 009-network-privacy | WebRTC IP leak prevention |
+| 010-font-control | Font enumeration control |
 
 ## CI/CD
 
