@@ -105,15 +105,17 @@ Scope is optional. Examples:
 
 1. Build patched Chromium for all platforms:
    ```bash
+   export CHROMIUM_SRC="/data/development/BROWSER/chromium/src"
    python build/build_chromium.py --platform all
    ```
-2. Package:
+2. Package (requires `pip install -e .` — imports `__version__` for `min_library`):
    ```bash
    python build/package.py --version VERSION --platform all
    ```
 3. Release:
    ```bash
    python build/release.py --version VERSION          # or --draft for testing
+   python build/release.py --version VERSION --clobber # re-upload + update body
    ```
 
 This creates a GitHub Release tagged `chromium-VERSION` with:

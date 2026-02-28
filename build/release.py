@@ -102,7 +102,7 @@ def main() -> None:
         sys.exit(1)
 
     if exists and args.clobber:
-        # Delete existing assets and re-upload
+        # Delete existing assets, re-upload, and update release body
         print(f"Clobbering existing release {tag}...")
         for f in upload_files:
             run(["gh", "release", "delete-asset", tag, f.name, "--yes"], check=False)
@@ -112,6 +112,9 @@ def main() -> None:
         if result.returncode != 0:
             print(f"ERROR: Upload failed: {result.stderr}", file=sys.stderr)
             sys.exit(1)
+        # Update release body to reflect new manifest
+        body = build_release_body(args.version, manifest)
+        run(["gh", "release", "edit", tag, "--notes", body])
     else:
         # Create new release
         body = build_release_body(args.version, manifest)
