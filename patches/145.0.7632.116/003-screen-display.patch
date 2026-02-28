@@ -1,4 +1,4 @@
-From 034c1c413361d571429477d3ebae5203609c0d01 Mon Sep 17 00:00:00 2001
+From 70d00d0fcdcae62808ee82c9fd75b754a63b53e9 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:01:28 +0000
 Subject: [PATCH 03/10] 003-screen-display
@@ -7,11 +7,11 @@ Screen/display property spoofing via widget_base.cc:
 - Override screen width, height, availWidth, availHeight
 - Override colorDepth and devicePixelRatio
 ---
- .../renderer/platform/widget/widget_base.cc   | 40 +++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ .../renderer/platform/widget/widget_base.cc   | 50 +++++++++++++++++++
+ 1 file changed, 50 insertions(+)
 
 diff --git a/third_party/blink/renderer/platform/widget/widget_base.cc b/third_party/blink/renderer/platform/widget/widget_base.cc
-index 05b89451b9609..27c91745f4d40 100644
+index 05b89451b9609..670d898850ac1 100644
 --- a/third_party/blink/renderer/platform/widget/widget_base.cc
 +++ b/third_party/blink/renderer/platform/widget/widget_base.cc
 @@ -7,6 +7,8 @@
@@ -23,10 +23,28 @@ index 05b89451b9609..27c91745f4d40 100644
  #include "base/debug/dump_without_crashing.h"
  #include "base/feature_list.h"
  #include "base/logging.h"
-@@ -1712,6 +1714,44 @@ void WidgetBase::UpdateSurfaceAndScreenInfo(
+@@ -1682,7 +1684,14 @@ void WidgetBase::RequestAnimationAfterDelayTimerFired(TimerBase*) {
+   client_->ScheduleAnimation(/*urgent=*/urgent_for_input);
+ }
+ 
++// Real device scale factor saved before --aspect-* overrides.  File-scope
++// is fine: all WidgetBase instances in a renderer share the same display DPR,
++// and Blink runs single-threaded.
++static float g_original_device_scale_factor = 0.0f;
++
+ float WidgetBase::GetOriginalDeviceScaleFactor() const {
++  if (g_original_device_scale_factor > 0)
++    return g_original_device_scale_factor;
+   return client_->GetOriginalScreenInfos().current().device_scale_factor;
+ }
+ 
+@@ -1712,6 +1721,47 @@ void WidgetBase::UpdateSurfaceAndScreenInfo(
  
    local_surface_id_from_parent_ = new_local_surface_id;
    screen_infos_ = new_screen_infos;
++  // Save the real device scale factor before --aspect-* overrides modify it.
++  g_original_device_scale_factor =
++      screen_infos_.current().device_scale_factor;
 +  {
 +    auto* cmd = base::CommandLine::ForCurrentProcess();
 +    auto& si = screen_infos_.mutable_current();
