@@ -1,4 +1,4 @@
-# Browser Management
+# Browser Lifecycle
 
 ## Starting a browser
 ```python

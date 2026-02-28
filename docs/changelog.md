@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.3.0
+
+Browser management and project standards.
+
+### Added
+
+- `dechromium install [VERSION]` — download patched Chromium from GitHub Releases
+- `dechromium update` — check for updates to installed browsers (hotfix detection)
+- `dechromium browsers` — list available and installed browser versions
+- `dechromium uninstall VERSION` — remove installed browser
+- `BrowserManager` class for programmatic browser management
+- `Dechromium.install_browser()`, `.update_browsers()`, `.list_browsers()`, `.uninstall_browser()`
+- Multi-version browser storage (`~/.dechromium/browsers/<version>/`)
+- Auto-resolve latest installed browser as default
+- SHA-256 verification when `manifest.json` is present in GitHub Release
+- Compatibility check via `manifest.json` `min_library` field
+- `.editorconfig`
+- `.pre-commit-config.yaml` (trailing whitespace, EOF, YAML/TOML checks, ruff lint+format)
+- `CLAUDE.md` — project guide for AI-assisted development
+- `CONTRIBUTING.md` — contributor guide
+- GitHub issue templates (bug report, feature request)
+- GitHub pull request template
+
+### Changed
+
+- `Config.browser_bin` auto-resolves from `~/.dechromium/browsers/` (latest installed version)
+- Legacy `~/.dechromium/browser/chrome` path still supported as fallback
+- Added `pre-commit>=4.0` to dev dependencies
+
+### Removed
+
+- `_compat.py` — version compatibility is now handled by `manifest.json` in GitHub Releases, not hardcoded in the library
+
 ## 0.2.0
 
 Package restructure and type safety improvements.

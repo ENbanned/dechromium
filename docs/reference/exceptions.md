@@ -6,6 +6,7 @@ All exceptions inherit from `DechromiumError`.
 DechromiumError
 ├── ProfileNotFoundError
 ├── ProfileExistsError
+├── InstallError
 ├── BrowserError
 │   ├── BrowserNotRunningError
 │   └── BrowserTimeoutError
@@ -43,6 +44,21 @@ except ProfileNotFoundError:
 ## ProfileExistsError
 
 Raised when attempting to create a profile that already exists.
+
+## InstallError
+
+Raised when browser installation fails — release not found, network error, SHA-256 mismatch, or missing platform binary.
+
+```python
+from dechromium import InstallError
+
+try:
+    dc.install_browser("999.0.0.0")
+except InstallError as e:
+    print(f"Install failed: {e}")
+```
+
+**Raised by:** `Dechromium.install_browser()`, `install_chromium()`, `BrowserManager.install()`
 
 ## BrowserError
 

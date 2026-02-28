@@ -1,5 +1,11 @@
 # Quick Start
 
+Prerequisite: install the library and browser binary.
+```bash
+pip install dechromium
+dechromium install
+```
+
 ## Create a profile
 ```python
 from dechromium import Dechromium, Platform

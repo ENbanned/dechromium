@@ -30,7 +30,8 @@ nav:
     - Quick Start: getting-started/quickstart.md
   - User Guide:
     - Profiles: guide/profiles.md
-    - Browser: guide/browser.md
+    - Browser Lifecycle: guide/browser.md
+    - Browser Management: guide/browser-management.md
     - Proxy & Network: guide/network.md
     - Cookies: guide/cookies.md
     - REST API: guide/rest-api.md

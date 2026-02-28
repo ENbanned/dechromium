@@ -75,11 +75,14 @@ The binary is at `out/Release/chrome`.
 
 ## 6. Install
 
-Copy the binary to where dechromium expects it:
+Copy the binary to the versioned directory:
 ```bash
-mkdir -p ~/.dechromium/browser
-cp out/Release/chrome ~/.dechromium/browser/chrome
+VERSION=145.0.7632.116
+mkdir -p ~/.dechromium/browsers/$VERSION
+cp out/Release/chrome ~/.dechromium/browsers/$VERSION/chrome
 ```
+
+The library auto-detects the latest installed version from `~/.dechromium/browsers/`.
 
 ## Working with patches
 

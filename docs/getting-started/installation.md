@@ -1,13 +1,9 @@
 # Installation
 
-## Python library
+## 1. Python library
+
 ```bash
 pip install dechromium
-```
-
-Verify:
-```bash
-python -c "from dechromium import Dechromium; print('OK')"
 ```
 
 With REST API server:
@@ -15,30 +11,40 @@ With REST API server:
 pip install dechromium[server]
 ```
 
-## Browser binary
-
-The library requires a patched Chromium binary. Two options:
-
-### Option 1: Download prebuilt (recommended)
-
-Download from [GitHub Releases](https://github.com/ENbanned/dechromium/releases) and extract:
+Verify:
 ```bash
-mkdir -p ~/.dechromium/browser
-tar xzf dechromium-browser-145.0.7632.116-linux-x64.tar.gz -C ~/.dechromium/browser/
+dechromium version
 ```
 
-### Option 2: Build from source
+## 2. Browser binary
 
-See [Building from Source](../patches/building.md) for full instructions. This takes 2-4 hours for a first build.
+The library requires a patched Chromium binary.
 
-## Font packs
+### Download (recommended)
+
+```bash
+dechromium install
+```
+
+This downloads the latest patched Chromium from [GitHub Releases](https://github.com/ENbanned/dechromium/releases) and installs it to `~/.dechromium/browsers/<version>/`.
+
+Install a specific version:
+```bash
+dechromium install 145.0.7632.116
+```
+
+### Build from source
+
+See [Build Guide](../patches/building.md). First build takes 2-4 hours; incremental builds after patch changes take 2-5 minutes.
+
+## 3. Font packs
 
 Font packs are included in the repository under `fonts/`. Copy them to the default location:
 ```bash
 cp -r fonts/ ~/.dechromium/fonts/
 ```
 
-Or point the library to your fonts directory:
+Or point to a custom directory:
 ```python
 from dechromium import Dechromium, Config
 
@@ -47,16 +53,17 @@ dc = Dechromium(Config(fonts_dir="/path/to/fonts"))
 
 ## Directory structure
 
-After installation, `~/.dechromium/` looks like:
 ```
 ~/.dechromium/
-├── browser/
-│   └── chrome          # patched Chromium binary
+├── browsers/
+│   └── 145.0.7632.116/
+│       ├── chrome                # patched Chromium binary
+│       └── .manifest.json        # version metadata
 ├── fonts/
-│   ├── windows/        # .ttf files for Windows profiles
-│   ├── linux/          # .ttf files for Linux profiles
-│   └── macos/          # .ttf files for macOS profiles
-└── profiles/           # created automatically
+│   ├── windows/                  # .ttf files for Windows profiles
+│   ├── linux/                    # .ttf files for Linux profiles
+│   └── macos/                    # .ttf files for macOS profiles
+└── profiles/                     # created automatically
     └── {profile_id}/
         ├── profile.json
         ├── chrome_data/
@@ -69,10 +76,12 @@ After installation, `~/.dechromium/` looks like:
 All paths can be overridden via environment variables:
 
 | Variable | Default | Description |
-|---|---|---|
+|----------|---------|-------------|
 | `DECHROMIUM_DATA_DIR` | `~/.dechromium` | Base directory |
-| `DECHROMIUM_BROWSER_BIN` | `~/.dechromium/browser/chrome` | Chromium binary |
+| `DECHROMIUM_BROWSER_BIN` | auto-detect | Override Chromium binary path |
 | `DECHROMIUM_FONTS_DIR` | `~/.dechromium/fonts` | Font packs |
+
+If `DECHROMIUM_BROWSER_BIN` is not set, the library scans `~/.dechromium/browsers/` and selects the latest installed version.
 
 Or via `Config`:
 ```python
