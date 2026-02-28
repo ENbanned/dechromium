@@ -46,23 +46,51 @@ PLATFORMS = {
         "binary": "chrome.exe",
         "asset_platform": "win-x64",
         "files": [
+            # Core — chrome.exe is a thin launcher, chrome.dll is the browser
             "chrome.exe",
+            "chrome.dll",
+            "chrome_elf.dll",
+            # No chrome_crashpad_handler.exe on Windows — crash handling is
+            # built into chrome.exe via --type=crashpad-handler
+            "chrome_proxy.exe",
+            "chrome_pwa_launcher.exe",
+            "chrome_wer.dll",
+            "notification_helper.exe",
+            "eventlog_provider.dll",
+            # Resources
             "chrome_100_percent.pak",
             "chrome_200_percent.pak",
-            "chrome_elf.dll",
-            "chrome_crashpad_handler.exe",
             "headless_lib_data.pak",
             "headless_lib_strings.pak",
+            "headless_command_resources.pak",
             "icudtl.dat",
+            "resources.pak",
+            # V8 — cross-compiled builds use snapshot_blob.bin, not v8_context_snapshot.bin
+            "snapshot_blob.bin",
+            # Graphics — ANGLE + SwiftShader + DXC (dawn_use_built_dxc=true for win-x64)
             "libEGL.dll",
             "libGLESv2.dll",
-            "resources.pak",
-            "v8_context_snapshot.bin",
+            "d3dcompiler_47.dll",
+            "dxcompiler.dll",
+            "dxil.dll",
             "vk_swiftshader.dll",
             "vulkan-1.dll",
             "vk_swiftshader_icd.json",
+            # First-run suppression — without this Chrome shows import wizard
+            "First Run",
+            # VC++ runtime — required on machines without Redistributable
+            "vcruntime140.dll",
+            "vcruntime140_1.dll",
+            "msvcp140.dll",
         ],
-        "globs": ["locales/*.pak", "MEIPreload/*"],
+        "globs": [
+            "locales/*.pak",
+            "MEIPreload/*",
+            "PrivacySandboxAttestationsPreloaded/*",
+            "IwaKeyDistribution/*",
+            # {version}.manifest — SxS assembly manifest required by chrome.exe
+            "*.manifest",
+        ],
     },
 }
 
