@@ -18,10 +18,14 @@ mkdir -p "$PATCHES_DIR"
 rm -f "$PATCHES_DIR"/*.patch
 git format-patch "$BASE_TAG"..aspect -o "$PATCHES_DIR"
 
+# Rename: git format-patch outputs 0001-name.patch, 0002-name.patch, etc.
+# Commits are named like "001-aspect-infrastructure", so format-patch produces
+# "0001-001-aspect-infrastructure.patch". Strip only the format-patch prefix.
 cd "$PATCHES_DIR"
 for f in *.patch; do
     [ -f "$f" ] || continue
-    new=$(echo "$f" | sed 's/^[0-9]*-//')
+    # Remove the 4-digit format-patch prefix (e.g. "0001-" → keep "001-name.patch")
+    new=$(echo "$f" | sed 's/^[0-9]\{4\}-//')
     mv "$f" "$new"
 done
 

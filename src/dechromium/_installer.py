@@ -105,11 +105,9 @@ def _check_compat(manifest: dict) -> None:
     min_lib = manifest.get("min_library")
     if not min_lib:
         return
-    from packaging.version import Version
-
     from dechromium import __version__
 
-    if Version(__version__) < Version(min_lib):
+    if _version_key(__version__) < _version_key(min_lib):
         print(
             f"  Warning: requires dechromium >= {min_lib} "
             f"(you have {__version__}). Run: pip install --upgrade dechromium"
