@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from urllib.parse import urlparse
 
 from dechromium._config import Config
@@ -101,10 +102,10 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
 
 def build_launch_env(profile: Profile, config: Config) -> dict[str, str]:
     """Build environment variables for launching Chrome."""
-    fonts_conf = config.profiles_dir / profile.id / "fonts.conf"
-    posix_locale = profile.network.locale.replace("-", "_") + ".UTF-8"
-    return {
-        "FONTCONFIG_FILE": str(fonts_conf),
-        "TZ": profile.network.timezone,
-        "LANG": posix_locale,
-    }
+    env: dict[str, str] = {"TZ": profile.network.timezone}
+    if sys.platform != "win32":
+        fonts_conf = config.profiles_dir / profile.id / "fonts.conf"
+        posix_locale = profile.network.locale.replace("-", "_") + ".UTF-8"
+        env["FONTCONFIG_FILE"] = str(fonts_conf)
+        env["LANG"] = posix_locale
+    return env

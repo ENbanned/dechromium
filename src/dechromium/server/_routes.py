@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 
+from dechromium import __version__
 from dechromium._exceptions import BrowserError, BrowserTimeoutError, ProfileNotFoundError
 
 from ._schemas import CookieImportRequest, CreateRequest, StartRequest, UpdateRequest
@@ -15,7 +16,7 @@ _DEFAULT_START = StartRequest()
 
 
 def create_app(dc: Dechromium) -> FastAPI:
-    app = FastAPI(title="dechromium", version="0.2.0")
+    app = FastAPI(title="dechromium", version=__version__)
 
     @app.post("/profiles")
     def create_profile(req: CreateRequest):

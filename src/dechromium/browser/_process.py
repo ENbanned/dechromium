@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from urllib.error import URLError
@@ -45,13 +46,17 @@ class BrowserProcess:
             "--no-sandbox",
         ]
 
-        self._proc = subprocess.Popen(
-            full_args,
-            env={**os.environ, **self.env},
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        popen_kwargs: dict = {
+            "env": {**os.environ, **self.env},
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if sys.platform == "win32":
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            popen_kwargs["start_new_session"] = True
+
+        self._proc = subprocess.Popen(full_args, **popen_kwargs)
 
         cdp_url = f"http://127.0.0.1:{self.debug_port}"
 

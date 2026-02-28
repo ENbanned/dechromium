@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,10 @@ from pydantic import BaseModel, Field
 
 def _env_path(key: str, default: str) -> Path:
     return Path(os.environ.get(key, default))
+
+
+def _chrome_binary_name() -> str:
+    return "chrome.exe" if sys.platform == "win32" else "chrome"
 
 
 def _default_data_dir() -> Path:
@@ -25,14 +30,16 @@ def _default_browser_bin() -> Path:
     browsers_dir = data_dir / "browsers"
     if browsers_dir.is_dir():
         versions = [
-            d.name for d in browsers_dir.iterdir() if d.is_dir() and (d / "chrome").exists()
+            d.name
+            for d in browsers_dir.iterdir()
+            if d.is_dir() and (d / _chrome_binary_name()).exists()
         ]
         if versions:
             versions.sort(key=_version_key, reverse=True)
-            return browsers_dir / versions[0] / "chrome"
+            return browsers_dir / versions[0] / _chrome_binary_name()
 
     # Legacy layout (pre-multi-version)
-    return data_dir / "browser" / "chrome"
+    return data_dir / "browser" / _chrome_binary_name()
 
 
 def _version_key(v: str) -> tuple[int, ...]:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
 
 from dechromium._config import Config
@@ -108,8 +109,9 @@ def setup_profile_fonts(profile: Profile, config: Config) -> None:
             if not dst.exists():
                 shutil.copy2(ttf, dst)
 
-    xml = generate_fontconfig_xml(pack, font_dir, cache_dir)
-    (profile_dir / "fonts.conf").write_text(xml)
+    if sys.platform != "win32":
+        xml = generate_fontconfig_xml(pack, font_dir, cache_dir)
+        (profile_dir / "fonts.conf").write_text(xml)
 
 
 def generate_fontconfig_xml(font_pack: str, font_dir: Path, cache_dir: Path) -> str:

@@ -7,6 +7,7 @@ import hashlib
 import json
 import platform
 import shutil
+import sys
 import tarfile
 import tempfile
 from datetime import UTC, datetime
@@ -18,6 +19,8 @@ from dechromium._config import _default_data_dir
 from dechromium._exceptions import DechromiumError
 
 GITHUB_REPO = "ENbanned/dechromium"
+
+_CHROME_BIN = "chrome.exe" if sys.platform == "win32" else "chrome"
 
 
 class InstallError(DechromiumError):
@@ -152,7 +155,7 @@ class BrowserManager:
             return []
         results = []
         for d in self._browsers_dir.iterdir():
-            if d.is_dir() and (d / "chrome").exists():
+            if d.is_dir() and (d / _CHROME_BIN).exists():
                 manifest = self._read_manifest(d.name)
                 results.append({"version": d.name, "manifest": manifest})
         results.sort(key=lambda e: _version_key(e["version"]), reverse=True)
@@ -174,7 +177,7 @@ class BrowserManager:
         """Return path to the latest installed chrome binary, or None."""
         entries = self.installed()
         if entries:
-            return self._browsers_dir / entries[0]["version"] / "chrome"
+            return self._browsers_dir / entries[0]["version"] / _CHROME_BIN
         return None
 
     # -- install -----------------------------------------------------------
@@ -245,7 +248,7 @@ class BrowserManager:
             if local and local.get("asset_updated_at") == asset_updated:
                 if progress:
                     print(f"  Chromium {version} is already up to date.")
-                return dest / "chrome"
+                return dest / _CHROME_BIN
 
         # Download
         with tempfile.TemporaryDirectory() as tmp:
@@ -255,8 +258,12 @@ class BrowserManager:
             except OSError as exc:
                 raise InstallError(f"Download failed: {exc}") from exc
 
-            # Verify sha256 if manifest provides it
+            # Verify sha256 if manifest provides it (supports both flat and per-platform)
             expected_sha = remote_manifest.get("sha256")
+            if not expected_sha:
+                assets = remote_manifest.get("assets", {})
+                plat_info = assets.get(plat, {})
+                expected_sha = plat_info.get("sha256")
             if expected_sha:
                 actual_sha = _sha256(archive)
                 if actual_sha != expected_sha:
@@ -286,9 +293,9 @@ class BrowserManager:
         }
         self._write_manifest(version, local_manifest)
 
-        # Make chrome executable
-        chrome_bin = dest / "chrome"
-        if chrome_bin.exists():
+        # Make chrome executable (not needed on Windows)
+        chrome_bin = dest / _CHROME_BIN
+        if chrome_bin.exists() and sys.platform != "win32":
             chrome_bin.chmod(0o755)
 
         if progress:

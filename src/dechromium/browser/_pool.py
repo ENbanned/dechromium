@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import os
 import socket
+import sys
 
 from dechromium._exceptions import BrowserError
 
-from ._display import VirtualDisplay
 from ._process import BrowserInfo, BrowserProcess
+
+if sys.platform != "win32":
+    from ._display import VirtualDisplay
 
 
 class BrowserPool:
@@ -34,13 +37,16 @@ class BrowserPool:
         launch_env = dict(env)
         if headless:
             launch_args.append("--headless=new")
-        else:
+        elif sys.platform != "win32":
             if not self._display:
                 self._display = VirtualDisplay()
             if not self._display.is_running:
                 self._display.start()
             launch_env["DISPLAY"] = self._display.display_str
-        if not os.environ.get("DISPLAY") or not headless:
+        if sys.platform == "win32":
+            if headless:
+                launch_args.append("--enable-unsafe-swiftshader")
+        elif not os.environ.get("DISPLAY") or not headless:
             launch_args.append("--enable-unsafe-swiftshader")
         if extra_args:
             launch_args.extend(extra_args)

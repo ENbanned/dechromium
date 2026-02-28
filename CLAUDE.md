@@ -9,6 +9,8 @@ dechromium is an open-source anti-detect browser library for Python. It manages 
 - **License**: MIT
 - **Python**: 3.11+
 
+For the full build workspace reference (Chromium checkout, cross-compilation, build workflow), see `/root/development/BROWSER/CLAUDE.md`.
+
 ## Repo structure
 
 ```
@@ -26,7 +28,15 @@ src/dechromium/          # Main package (src/ layout)
   data/                  # Static data (gpu_profiles.json)
 patches/                 # Chromium patches organized by version
   145.0.7632.116/        # 001-aspect-infrastructure.patch through 010-font-control.patch
-build/                   # Shell scripts for patch management
+build/                   # Build + patch management scripts
+  build_chromium.py      # Multi-platform Chromium build (linux/win/all)
+  package.py             # Package built Chromium into release archives
+  release.py             # Upload to GitHub Releases via gh CLI
+  apply_patches.sh       # Apply patches to chromium/src
+  export_patches.sh      # Export aspect branch commits as patches
+  new_patch.sh           # Create a new numbered patch
+  edit_patch.sh          # Edit an existing patch
+  build.sh               # Legacy Linux-only build script
 docs/                    # mkdocs-material documentation
 fonts/                   # TTF font files for font isolation
 .github/workflows/       # CI, release, docs workflows
@@ -50,6 +60,7 @@ pre-commit install
 - **Models**: Pydantic v2 BaseModel, StrEnum for enums
 - **Type hints**: required on all public functions, `py.typed` marker present
 - **Imports**: `from __future__ import annotations` in every module
+- **Cross-platform**: Use `sys.platform == "win32"` guards for Windows-specific behavior. Binary name: `chrome` (Linux/macOS), `chrome.exe` (Windows). Skip fontconfig XML and DISPLAY/Xvfb on Windows.
 
 ## Commit conventions
 
@@ -92,20 +103,34 @@ Scope is optional. Examples:
 
 ## Release process (Chromium)
 
-1. Build patched Chromium
-2. Tag: `git tag chromium-VERSION` (e.g., `chromium-145.0.7632.116`)
-3. Create GitHub Release with two assets:
-   - `dechromium-chromium-VERSION-PLATFORM.tar.gz` — the binary
-   - `manifest.json` — metadata (optional but recommended)
-4. Release body: list patches, compatible library versions
+1. Build patched Chromium for all platforms:
+   ```bash
+   python build/build_chromium.py --platform all
+   ```
+2. Package:
+   ```bash
+   python build/package.py --version VERSION --platform all
+   ```
+3. Release:
+   ```bash
+   python build/release.py --version VERSION          # or --draft for testing
+   ```
+
+This creates a GitHub Release tagged `chromium-VERSION` with:
+- `dechromium-chromium-VERSION-linux-x64.tar.gz`
+- `dechromium-chromium-VERSION-win-x64.tar.gz`
+- `manifest.json` — per-platform SHA-256 hashes, patch list, min_library
 
 `manifest.json` example:
 ```json
 {
   "chromium_version": "145.0.7632.116",
-  "min_library": "0.2.0",
-  "sha256": "<sha256 of tar.gz>",
-  "patches": ["001-aspect-infrastructure", "002-navigator-spoofing", "..."]
+  "min_library": "0.3.0",
+  "patches": ["001-aspect-infrastructure", "002-navigator-spoofing", "..."],
+  "assets": {
+    "linux-x64": {"sha256": "...", "archive": "dechromium-chromium-145.0.7632.116-linux-x64.tar.gz"},
+    "win-x64": {"sha256": "...", "archive": "dechromium-chromium-145.0.7632.116-win-x64.tar.gz"}
+  }
 }
 ```
 
@@ -115,7 +140,7 @@ Scope is optional. Examples:
 - `dechromium install 146.x.x.x` → fetches that specific release from GitHub
 - **No hardcoded version list** — the library talks to GitHub API, not to internal constants
 - If `manifest.json` is present in the release → checks `min_library` before downloading, verifies `sha256` after
-- Browsers stored in `~/.dechromium/browsers/<version>/chrome` (multi-version side-by-side)
+- Browsers stored in `~/.dechromium/browsers/<version>/chrome[.exe]` (multi-version side-by-side)
 - Default browser = latest installed version (auto-resolved by `Config`)
 
 ### Hotfix for an existing Chromium version
