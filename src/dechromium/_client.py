@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from dechromium._config import Config
+from dechromium._installer import BrowserManager
 from dechromium.browser import BrowserInfo, BrowserPool
 from dechromium.browser._cookies import export_cookies, import_cookies
 from dechromium.models import Platform, Profile
@@ -66,6 +67,7 @@ class Dechromium:
     def __init__(self, config: Config | None = None, **kwargs):
         self.config = config or Config(**kwargs)
         self._manager = ProfileManager(self.config)
+        self._browsers = BrowserManager(self.config.data_dir)
         self._pool = BrowserPool(
             port_start=self.config.debug_port_start,
             port_end=self.config.debug_port_end,
@@ -243,6 +245,40 @@ class Dechromium:
     def export_cookies(self, profile_id: str) -> list[dict]:
         data_dir = self._manager.data_dir(profile_id)
         return export_cookies(data_dir)
+
+    def install_browser(
+        self,
+        version: str | None = None,
+        *,
+        force: bool = False,
+        progress: bool = True,
+    ) -> Path:
+        """Download and install patched Chromium.
+
+        Args:
+            version: Chromium version. If None, installs the latest from GitHub.
+            force: Re-download even if already installed.
+            progress: Show download progress.
+
+        Returns:
+            Path to the installed chrome binary.
+        """
+        return self._browsers.install(version, force=force, progress=progress)
+
+    def update_browsers(self, *, progress: bool = True) -> list[str]:
+        """Check for updates to installed browsers.
+
+        Returns list of versions that were updated.
+        """
+        return self._browsers.update(progress=progress)
+
+    def list_browsers(self) -> list[dict]:
+        """List locally installed browser versions."""
+        return self._browsers.installed()
+
+    def uninstall_browser(self, version: str) -> bool:
+        """Remove an installed Chromium version."""
+        return self._browsers.uninstall(version)
 
     def serve(self, host: str | None = None, port: int | None = None):
         try:

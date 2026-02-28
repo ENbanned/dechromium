@@ -9,6 +9,7 @@ from dechromium._exceptions import (
     ProfileExistsError,
     ProfileNotFoundError,
 )
+from dechromium._installer import BrowserManager, InstallError, install_chromium
 from dechromium.browser import BrowserInfo
 from dechromium.models import (
     ColorDepth,
@@ -25,11 +26,12 @@ from dechromium.models import (
     WebRTCPolicy,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "BrowserError",
     "BrowserInfo",
+    "BrowserManager",
     "BrowserNotRunningError",
     "BrowserTimeoutError",
     "ColorDepth",
@@ -42,6 +44,7 @@ __all__ = [
     "Fonts",
     "Hardware",
     "Identity",
+    "InstallError",
     "Network",
     "Noise",
     "Platform",
@@ -50,4 +53,5 @@ __all__ = [
     "ProfileNotFoundError",
     "WebGL",
     "WebRTCPolicy",
+    "install_chromium",
 ]

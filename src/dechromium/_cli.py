@@ -10,15 +10,125 @@ def main():
         _usage()
         return
 
-    if args[0] == "serve":
+    cmd = args[0]
+    if cmd == "install":
+        _install(args[1:])
+    elif cmd == "update":
+        _update(args[1:])
+    elif cmd == "browsers":
+        _browsers(args[1:])
+    elif cmd == "uninstall":
+        _uninstall(args[1:])
+    elif cmd == "serve":
         _serve(args[1:])
-    elif args[0] == "version":
+    elif cmd == "version":
         from dechromium import __version__
 
         print(f"dechromium {__version__}")
     else:
-        print(f"Unknown command: {args[0]}")
+        print(f"Unknown command: {cmd}")
         _usage()
+        sys.exit(1)
+
+
+def _install(args: list[str]):
+    version = None
+    force = False
+
+    for arg in args:
+        if arg == "--help":
+            print("Usage: dechromium install [VERSION] [--force]")
+            print()
+            print("Download and install patched Chromium browser.")
+            print()
+            print("Arguments:")
+            print("  VERSION              Chromium version (default: latest)")
+            print()
+            print("Options:")
+            print("  --force              Re-download even if already installed")
+            return
+        elif arg.startswith("--version="):
+            version = arg.split("=", 1)[1]
+        elif arg == "--force":
+            force = True
+        elif not arg.startswith("-"):
+            version = arg
+
+    from dechromium._installer import install_chromium
+
+    install_chromium(version=version, force=force)
+
+
+def _update(args: list[str]):
+    if args and args[0] == "--help":
+        print("Usage: dechromium update")
+        print()
+        print("Check for updates to installed browsers.")
+        return
+
+    from dechromium._installer import BrowserManager
+
+    BrowserManager().update()
+
+
+def _browsers(args: list[str]):
+    if args and args[0] == "--help":
+        print("Usage: dechromium browsers")
+        print()
+        print("List available and installed browser versions.")
+        return
+
+    from dechromium._installer import BrowserManager, _version_key
+
+    mgr = BrowserManager()
+    installed = {e["version"] for e in mgr.installed()}
+
+    print("Fetching available versions...")
+    try:
+        available = mgr.available()
+    except Exception:
+        available = []
+        print("  Could not reach GitHub API.")
+
+    all_versions = sorted(
+        set(available) | installed,
+        key=_version_key,
+        reverse=True,
+    )
+
+    if not all_versions:
+        print("No browsers available or installed.")
+        return
+
+    # Latest installed is active
+    installed_sorted = sorted(installed, key=_version_key, reverse=True)
+    active = installed_sorted[0] if installed_sorted else None
+
+    print()
+    print(f"  {'VERSION':<25} STATUS")
+    for v in all_versions:
+        status = ("installed *" if v == active else "installed") if v in installed else "available"
+        print(f"  {v:<25} {status}")
+    print()
+    if active:
+        print("  * = active (used by default)")
+
+
+def _uninstall(args: list[str]):
+    if not args or args[0] == "--help":
+        print("Usage: dechromium uninstall VERSION")
+        print()
+        print("Remove an installed browser version.")
+        return
+
+    version = args[0]
+
+    from dechromium._installer import BrowserManager
+
+    if BrowserManager().uninstall(version):
+        print(f"Uninstalled Chromium {version}")
+    else:
+        print(f"Chromium {version} is not installed.")
         sys.exit(1)
 
 
@@ -46,9 +156,17 @@ def _serve(args: list[str]):
 def _usage():
     print("Usage: dechromium <command>")
     print()
-    print("Commands:")
-    print("  serve [--host=HOST] [--port=PORT]   Start REST API server")
-    print("  version                              Show version")
+    print("Browser management:")
+    print("  install [VERSION] [--force]          Download patched Chromium")
+    print("  update                               Check for browser updates")
+    print("  browsers                             List available/installed browsers")
+    print("  uninstall VERSION                    Remove installed browser")
+    print()
+    print("Server:")
+    print("  serve [--host=HOST] [--port=PORT]    Start REST API server")
+    print()
+    print("Info:")
+    print("  version                              Show library version")
     print()
     print("Python library:")
     print("  from dechromium import Dechromium")
