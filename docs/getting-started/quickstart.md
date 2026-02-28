@@ -10,10 +10,9 @@ dechromium install
 ```python
 from dechromium import Dechromium, Platform
 
-dc = Dechromium()
-
-# Platform preset sets identity, WebGL, and fonts automatically
-profile = dc.create("my-profile", platform=Platform.WINDOWS)
+with Dechromium() as dc:
+    # Platform preset sets identity, WebGL, and fonts automatically
+    profile = dc.create("my-profile", platform=Platform.WINDOWS)
 ```
 
 This creates a profile with:
@@ -28,45 +27,44 @@ This creates a profile with:
 ```python
 from dechromium import Dechromium, Platform, DeviceMemory
 
-dc = Dechromium()
-
-profile = dc.create("custom",
-    platform=Platform.WINDOWS,
-    proxy="socks5://user:pass@host:1080",
-    timezone="Europe/London",
-    locale="en-GB",
-    languages=["en-GB", "en"],
-    cores=4,
-    memory=DeviceMemory.GB_4,
-    screen=(1366, 768),
-)
+with Dechromium() as dc:
+    profile = dc.create("custom",
+        platform=Platform.WINDOWS,
+        proxy="socks5://user:pass@host:1080",
+        timezone="Europe/London",
+        locale="en-GB",
+        languages=["en-GB", "en"],
+        cores=4,
+        memory=DeviceMemory.GB_4,
+        screen=(1366, 768),
+    )
 ```
 
 Or override individual sections:
 ```python
-profile = dc.create("manual",
-    identity={"chrome_version": 145, "platform": "Win32", "ua_arch": "x86"},
-    hardware={"cores": 8, "memory": 8},
-    webgl={"vendor": "Google Inc. (NVIDIA)", "renderer": "ANGLE (NVIDIA, ...)"},
-    network={"timezone": "Asia/Tokyo", "locale": "ja-JP"},
-)
+with Dechromium() as dc:
+    profile = dc.create("manual",
+        identity={"chrome_version": 145, "platform": "Win32", "ua_arch": "x86"},
+        hardware={"cores": 8, "memory": 8},
+        webgl={"vendor": "Google Inc. (NVIDIA)", "renderer": "ANGLE (NVIDIA, ...)"},
+        network={"timezone": "Asia/Tokyo", "locale": "ja-JP"},
+    )
 ```
 
 ## Launch a browser
 ```python
-# Headless (default) — for automation
-browser = dc.start(profile.id, headless=True)
+with Dechromium() as dc:
+    profile = dc.create("my-profile", platform=Platform.WINDOWS)
 
-# Headed — opens a visible window (requires display)
-browser = dc.start(profile.id, headless=False)
-```
+    # Headless (default) — for automation
+    browser = dc.start(profile.id, headless=True)
 
-`browser` contains everything you need to connect:
-```python
-browser.pid           # OS process ID
-browser.debug_port    # CDP port number
-browser.ws_endpoint   # ws://127.0.0.1:9200/devtools/browser/...
-browser.cdp_url       # http://127.0.0.1:9200
+    # browser contains everything you need to connect:
+    browser.pid           # OS process ID
+    browser.debug_port    # CDP port number
+    browser.ws_endpoint   # ws://127.0.0.1:9200/devtools/browser/...
+    browser.cdp_url       # http://127.0.0.1:9200
+# all browsers stopped automatically on exit
 ```
 
 ## Connect with automation tools
@@ -101,16 +99,24 @@ browser.cdp_url       # http://127.0.0.1:9200
 
 ## Stop and cleanup
 ```python
-dc.stop(profile.id)    # stop one browser
-dc.stop_all()           # stop all browsers
-dc.delete(profile.id)   # delete profile and all data
-```
-
-## Context manager
-```python
 with Dechromium() as dc:
     profile = dc.create("temp", platform=Platform.WINDOWS)
     browser = dc.start(profile.id)
     # ... do work ...
 # all browsers stopped automatically on exit
+```
+
+## Alternative: manual lifecycle
+
+If you prefer explicit control over browser shutdown:
+```python
+from dechromium import Dechromium, Platform
+
+dc = Dechromium()
+profile = dc.create("my-profile", platform=Platform.WINDOWS)
+browser = dc.start(profile.id)
+# ... do work ...
+dc.stop(profile.id)    # stop one browser
+dc.stop_all()           # stop all browsers
+dc.delete(profile.id)   # delete profile and all data
 ```

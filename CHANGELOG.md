@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0
+
+Bundled fonts and context-manager-first documentation.
+
+### Added
+
+- Font packs bundled inside the pip package (`src/dechromium/fonts/`)
+- Auto-install fonts on first use — no manual `cp -r fonts/` needed
+- `.font_version` marker for fast-path skip and version-aware re-sync
+- `_fonts.py` module with `ensure_fonts()` utility
+
+### Changed
+
+- Documentation uses `with Dechromium() as dc:` as the primary pattern
+- Manual `dc.stop()` shown as alternative in quickstart
+- Installation docs no longer require manual font copy step
+- Repository structure: `fonts/` moved to `src/dechromium/fonts/`
+
 ## 0.3.0
 
 Browser management and project standards.

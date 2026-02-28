@@ -22,11 +22,11 @@ The first command installs the Python library. The second downloads the patched 
 ```python
 from dechromium import Dechromium, Platform
 
-dc = Dechromium()
-profile = dc.create("my-profile", platform=Platform.WINDOWS)
-browser = dc.start(profile.id)
-print(browser.ws_endpoint)  # connect with Playwright, Puppeteer, or Selenium
-dc.stop(profile.id)
+with Dechromium() as dc:
+    profile = dc.create("my-profile", platform=Platform.WINDOWS)
+    browser = dc.start(profile.id)
+    print(browser.ws_endpoint)  # connect with Playwright, Puppeteer, or Selenium
+# browser automatically stopped on exit
 ```
 
 ## Features

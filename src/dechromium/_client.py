@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from dechromium._config import Config
+from dechromium._fonts import ensure_fonts
 from dechromium._installer import BrowserManager
 from dechromium.browser import BrowserInfo, BrowserPool
 from dechromium.browser._cookies import export_cookies, import_cookies
@@ -68,6 +69,11 @@ class Dechromium:
         self.config = config or Config(**kwargs)
         self._manager = ProfileManager(self.config)
         self._browsers = BrowserManager(self.config.data_dir)
+
+        from dechromium import __version__
+
+        ensure_fonts(self.config.fonts_dir, __version__)
+
         self._pool = BrowserPool(
             port_start=self.config.debug_port_start,
             port_end=self.config.debug_port_end,

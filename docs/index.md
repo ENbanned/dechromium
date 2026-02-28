@@ -31,17 +31,16 @@ dechromium install
 ```python
 from dechromium import Dechromium, Platform
 
-dc = Dechromium()
+with Dechromium() as dc:
+    profile = dc.create("my-profile",
+        platform=Platform.WINDOWS,
+        proxy="socks5://user:pass@host:1080",
+        timezone="America/New_York",
+    )
 
-profile = dc.create("my-profile",
-    platform=Platform.WINDOWS,
-    proxy="socks5://user:pass@host:1080",
-    timezone="America/New_York",
-)
-
-browser = dc.start(profile.id, headless=False)
-# browser.ws_endpoint → connect with Playwright/Puppeteer/Selenium
-dc.stop(profile.id)
+    browser = dc.start(profile.id, headless=False)
+    # browser.ws_endpoint → connect with Playwright/Puppeteer/Selenium
+# all browsers stopped automatically on exit
 ```
 
 ## Repository structure
@@ -50,6 +49,6 @@ dc.stop(profile.id)
 |-----------|----------|
 | `src/dechromium/` | Python package — profile management, browser lifecycle, installer, REST API |
 | `patches/` | Chromium patches organized by version (e.g. `patches/145.0.7632.116/`) |
-| `fonts/` | Font packs per platform (windows, linux, macos) |
+| `src/dechromium/fonts/` | Font packs per platform (bundled in package, auto-installed) |
 | `build/` | Shell scripts for patching and building Chromium |
 | `docs/` | This documentation (mkdocs-material) |

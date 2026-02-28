@@ -39,12 +39,9 @@ See [Build Guide](../patches/building.md). First build takes 2-4 hours; incremen
 
 ## 3. Font packs
 
-Font packs are included in the repository under `fonts/`. Copy them to the default location:
-```bash
-cp -r fonts/ ~/.dechromium/fonts/
-```
+Fonts are bundled in the pip package and auto-installed on first use. No manual setup needed.
 
-Or point to a custom directory:
+To use a custom font directory:
 ```python
 from dechromium import Dechromium, Config
 
