@@ -1,7 +1,7 @@
-From d1bc9eaae37ad90c45e19358586195fbb6ba8ef2 Mon Sep 17 00:00:00 2001
+From da713a624999f8faaa43267160a3b67353c517ba Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:19:39 +0000
-Subject: [PATCH 07/11] 007-audio-fingerprint
+Subject: [PATCH 07/12] 007-audio-fingerprint
 
 Audio fingerprint noise via --aspect-audio-noise-seed:
 - AudioBuffer: gain-multiply noise on getChannelData/copyFromChannel
@@ -16,7 +16,7 @@ Audio fingerprint noise via --aspect-audio-noise-seed:
  3 files changed, 98 insertions(+)
 
 diff --git a/third_party/blink/renderer/modules/webaudio/audio_buffer.cc b/third_party/blink/renderer/modules/webaudio/audio_buffer.cc
-index 40a355dec4aad..4f19239d78c94 100644
+index 40a355dec4aad..185ebc0be6b66 100644
 --- a/third_party/blink/renderer/modules/webaudio/audio_buffer.cc
 +++ b/third_party/blink/renderer/modules/webaudio/audio_buffer.cc
 @@ -39,6 +39,10 @@
@@ -69,7 +69,7 @@ index 40a355dec4aad..4f19239d78c94 100644
 +  uint64_t buffer_seed = base_seed ^ (static_cast<uint64_t>(length_) * 2654435761u)
 +                                    ^ (static_cast<uint64_t>(channels_.size()) * 40503u);
 +  std::mt19937_64 rng(buffer_seed);
-+  double gain = 1.0 - static_cast<double>(rng() % 1000 + 1) * 1e-10;
++  double gain = 1.0 - static_cast<double>(rng() % 1000 + 1) * 5e-8;
 +
 +  for (unsigned ch = 0; ch < channels_.size(); ++ch) {
 +    base::span<float> data = channels_[ch].Get()->AsSpan();
@@ -97,7 +97,7 @@ index 2e798e3e5bae7..076d862376ce5 100644
        uint32_t length,
        InitializationPolicy allocation_policy =
 diff --git a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
-index dc68f422ce8af..d331093f998a8 100644
+index dc68f422ce8af..148ade7432e12 100644
 --- a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
 +++ b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
 @@ -37,11 +37,31 @@
@@ -140,7 +140,7 @@ index dc68f422ce8af..d331093f998a8 100644
 +    uint64_t audio_seed = GetAudioNoiseSeed();
 +    if (audio_seed != 0) {
 +      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2654435761u));
-+      float offset = static_cast<float>(rng() % 1000 + 1) * 1e-7f;
++      float offset = static_cast<float>(rng() % 1000 + 1) * 5e-5f;
 +      for (unsigned j = 0; j < len; ++j) {
 +        UNSAFE_TODO(destination[j]) += offset;
 +      }
@@ -156,7 +156,7 @@ index dc68f422ce8af..d331093f998a8 100644
 +    uint64_t audio_seed = GetAudioNoiseSeed();
 +    if (audio_seed != 0) {
 +      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2246822519u));
-+      int byte_offset = static_cast<int>(rng() % 3 + 1);
++      int byte_offset = static_cast<int>(rng() % 2);
 +      for (unsigned j = 0; j < len; ++j) {
 +        int v = static_cast<int>(UNSAFE_TODO(destination[j])) + byte_offset;
 +        UNSAFE_TODO(destination[j]) =
@@ -174,7 +174,7 @@ index dc68f422ce8af..d331093f998a8 100644
 +    uint64_t audio_seed = GetAudioNoiseSeed();
 +    if (audio_seed != 0) {
 +      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2246822519u));
-+      float offset = static_cast<float>(rng() % 1000 + 1) * 1e-7f;
++      float offset = static_cast<float>(rng() % 1000 + 1) * 5e-5f;
 +      for (unsigned j = 0; j < len; ++j) {
 +        UNSAFE_TODO(destination[j]) += offset;
 +      }
@@ -190,7 +190,7 @@ index dc68f422ce8af..d331093f998a8 100644
 +    uint64_t audio_seed = GetAudioNoiseSeed();
 +    if (audio_seed != 0) {
 +      std::mt19937_64 rng(audio_seed ^ (static_cast<uint64_t>(len) * 2654435761u));
-+      int byte_offset = static_cast<int>(rng() % 3 + 1);
++      int byte_offset = static_cast<int>(rng() % 2);
 +      for (unsigned j = 0; j < len; ++j) {
 +        int v = static_cast<int>(UNSAFE_TODO(destination[j])) + byte_offset;
 +        UNSAFE_TODO(destination[j]) =

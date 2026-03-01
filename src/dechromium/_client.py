@@ -222,6 +222,13 @@ class Dechromium:
         ]:
             if val is not None:
                 overrides[key] = val
+
+        # Re-run auto-geo if proxy changed and no explicit timezone/locale
+        if network and "proxy" in network:
+            proxy = network["proxy"]
+            if proxy and "timezone" not in network and "locale" not in network:
+                _apply_auto_geo(overrides, proxy, self.config.data_dir)
+
         return self._manager.update(profile_id, **overrides)
 
     def delete(self, profile_id: str) -> bool:
@@ -236,8 +243,10 @@ class Dechromium:
         extra_args: list[str] | None = None,
         timeout: float = 15.0,
     ) -> BrowserInfo:
+        profile = self._manager.get(profile_id)
         args = self._manager.launch_args(profile_id)
         env = self._manager.launch_env(profile_id)
+        res = f"{profile.hardware.screen_width}x{profile.hardware.screen_height}x24"
         return self._pool.start(
             profile_id,
             args,
@@ -245,6 +254,7 @@ class Dechromium:
             headless=headless,
             extra_args=extra_args,
             timeout=timeout,
+            screen_resolution=res,
         )
 
     def stop(self, profile_id: str) -> bool:
@@ -480,6 +490,7 @@ def _load_country_locales() -> dict:
 def _apply_auto_geo(overrides: dict, proxy: str, data_dir: Path) -> None:
     """Auto-fill timezone/locale/languages/geolocation from proxy IP."""
     import logging
+    import random
 
     from dechromium._geoip import lookup, resolve_proxy_ip
 
@@ -505,8 +516,11 @@ def _apply_auto_geo(overrides: dict, proxy: str, data_dir: Path) -> None:
         net.setdefault("locale", info["locale"])
         net.setdefault("languages", info["languages"])
 
-    net.setdefault("latitude", geo.latitude)
-    net.setdefault("longitude", geo.longitude)
+    # Jitter coordinates by ~1km to avoid exact GeoIP center
+    if geo.latitude is not None:
+        net.setdefault("latitude", round(geo.latitude + random.uniform(-0.01, 0.01), 6))
+    if geo.longitude is not None:
+        net.setdefault("longitude", round(geo.longitude + random.uniform(-0.01, 0.01), 6))
 
 
 # -- Network defaults used to detect "user never set this" ------------------

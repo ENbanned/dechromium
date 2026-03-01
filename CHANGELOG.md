@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.7.0
+
+Fingerprint audit — fix all critical, high and medium issues from BrowserScan analysis.
+
+### Added
+
+- `--aspect-font-families` flag — Blink-level font allowlist filtering (new patch 012)
+- `--aspect-webgl-version` / `--aspect-webgl-glsl-version` flags — GL_VERSION string spoofing
+- `font_families` field on `Fonts` model — per-platform font family lists
+- `data/font_families.json` — Windows/macOS/Linux font family reference data
+- WebGL `getExtension()` filtering — blocks extensions not in allowlist
+- WebGL2 GL_VERSION/GLSL_VERSION spoofing
+- Geolocation jitter (~1km) to avoid exact GeoIP center coordinates
+- Auto-geo re-run in `update()` when proxy changes
+
+### Changed
+
+- Canvas noise: content-dependent FNV1a algorithm replacing edge-pixel-flip
+- Audio noise: increased magnitude to detectable levels (5e-8 gain, 5e-5 analyser offset)
+- DOMRect noise: `Scale()` instead of `Offset()` for proportional perturbation
+- WebGL params format: `NAME=value` instead of `hex:value`
+- `--window-size` uses `avail_height` instead of `screen_height`
+- Accept-Language header includes q-values (`en-US,en;q=0.9`)
+- `avail_height` platform-aware taskbar deduction (Win: 40/48, Mac: 25, Linux: 27/36/48)
+- SwiftShader: always enabled in headless mode (both platforms)
+- Xvfb resolution matches profile screen dimensions
+- WebGPU disabled via `--disable-features=WebGPUService`
+
+### Removed
+
+- `webgl_seed` from `Noise` model (was never used by C++ patches)
+
+### Chromium patches
+
+- Fixup 001: new switches (`kAspectFontFamilies`, `kAspectWebglVersion`, `kAspectWebglGlslVersion`)
+- Fixup 005: content-dependent canvas noise (FNV1a PRNG, neighbor copy optimization)
+- Fixup 006: GL_VERSION/GLSL spoofing, getExtension filtering, WebGL2 support
+- Fixup 007: audio noise magnitude increase
+- Fixup 008: DOMRect Scale instead of Offset
+- New 012: font family allowlist in `font_cache.cc`
+
 ## 0.6.4
 
 ### Fixed

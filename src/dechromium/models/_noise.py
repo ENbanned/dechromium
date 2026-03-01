@@ -13,4 +13,3 @@ class Noise(BaseModel):
     canvas_seed: str = Field(default_factory=_hex12)
     audio_seed: str = Field(default_factory=_hex12)
     clientrects_seed: str = Field(default_factory=_hex12)
-    webgl_seed: str = Field(default_factory=_hex12)

@@ -1,7 +1,7 @@
-From 3b2356bf5e7e42e2218064ca4a307b18a96f6d79 Mon Sep 17 00:00:00 2001
+From 3497395b645088137b8f29e1074d1d32364d5a1c Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Sun, 1 Mar 2026 13:52:58 +0000
-Subject: [PATCH 11/11] 011-geolocation-spoofing
+Subject: [PATCH 11/12] 011-geolocation-spoofing
 
 ---
  .../renderer_host/render_process_host_impl.cc |  2 ++
@@ -11,39 +11,39 @@ Subject: [PATCH 11/11] 011-geolocation-spoofing
  4 files changed, 34 insertions(+), 2 deletions(-)
 
 diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
-index efb15041389f1..43c83b8929e85 100644
+index 74d1940830d84..34ac37b14a2a4 100644
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
-@@ -3813,6 +3813,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
-       blink::switches::kAspectWebglPrecisionMedium,
-       blink::switches::kAspectAudioNoiseSeed,
-       blink::switches::kAspectDomrectNoiseSeed,
+@@ -3816,6 +3816,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+       blink::switches::kAspectFontFamilies,
+       blink::switches::kAspectWebglVersion,
+       blink::switches::kAspectWebglGlslVersion,
 +      blink::switches::kAspectGeoLatitude,
 +      blink::switches::kAspectGeoLongitude,
        // Please keep these in alphabetical order. Compositor switches here
        // should also be added to
        // chrome/browser/ash/login/chrome_restart_request.cc.
 diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
-index 002b2d95fac1d..cf9d935097e99 100644
+index 5b2ec1adc8d4d..de267eaf72408 100644
 --- a/third_party/blink/common/switches.cc
 +++ b/third_party/blink/common/switches.cc
-@@ -182,6 +182,8 @@ const char kAspectWebglPrecisionHigh[] = "aspect-webgl-precision-high";
- const char kAspectWebglPrecisionMedium[] = "aspect-webgl-precision-medium";
- const char kAspectAudioNoiseSeed[] = "aspect-audio-noise-seed";
- const char kAspectDomrectNoiseSeed[] = "aspect-domrect-noise-seed";
+@@ -185,6 +185,8 @@ const char kAspectDomrectNoiseSeed[] = "aspect-domrect-noise-seed";
+ const char kAspectFontFamilies[] = "aspect-font-families";
+ const char kAspectWebglVersion[] = "aspect-webgl-version";
+ const char kAspectWebglGlslVersion[] = "aspect-webgl-glsl-version";
 +const char kAspectGeoLatitude[] = "aspect-geo-latitude";
 +const char kAspectGeoLongitude[] = "aspect-geo-longitude";
  
  }  // namespace switches
  }  // namespace blink
 diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
-index a68a51bbeb4ff..bbafc573658ce 100644
+index 03435b0541314..12f0ae1a7da6b 100644
 --- a/third_party/blink/public/common/switches.h
 +++ b/third_party/blink/public/common/switches.h
-@@ -82,6 +82,9 @@ BLINK_COMMON_EXPORT extern const char kAspectWebglPrecisionHigh[];
- BLINK_COMMON_EXPORT extern const char kAspectWebglPrecisionMedium[];
- BLINK_COMMON_EXPORT extern const char kAspectAudioNoiseSeed[];
- BLINK_COMMON_EXPORT extern const char kAspectDomrectNoiseSeed[];
+@@ -87,6 +87,9 @@ BLINK_COMMON_EXPORT extern const char kAspectFontFamilies[];
+ // WebGL version strings:
+ BLINK_COMMON_EXPORT extern const char kAspectWebglVersion[];
+ BLINK_COMMON_EXPORT extern const char kAspectWebglGlslVersion[];
 +// Geolocation:
 +BLINK_COMMON_EXPORT extern const char kAspectGeoLatitude[];
 +BLINK_COMMON_EXPORT extern const char kAspectGeoLongitude[];

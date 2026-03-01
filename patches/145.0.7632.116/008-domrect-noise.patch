@@ -1,19 +1,19 @@
-From 75097e5d8be5289b036668117e1b2a3f723d0fe5 Mon Sep 17 00:00:00 2001
+From 09c3e5ee7553648c2716dc97a1b05a46ff8e66e3 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:19:45 +0000
-Subject: [PATCH 08/11] 008-domrect-noise
+Subject: [PATCH 08/12] 008-domrect-noise
 
 DOMRect fingerprint noise via --aspect-domrect-noise-seed:
 - Element: getClientRects() and getBoundingClientRect()
 - Range: getClientRects() and getBoundingClientRect()
 - Deterministic sub-pixel offset based on seed
 ---
- .../blink/renderer/core/dom/element.cc        | 38 +++++++++++++++++-
+ .../blink/renderer/core/dom/element.cc        | 39 +++++++++++++++++-
  third_party/blink/renderer/core/dom/range.cc  | 40 ++++++++++++++++++-
- 2 files changed, 76 insertions(+), 2 deletions(-)
+ 2 files changed, 77 insertions(+), 2 deletions(-)
 
 diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/renderer/core/dom/element.cc
-index e57e5fbcf9c5e..5dd4f8661c74c 100644
+index e57e5fbcf9c5e..8d66a97407f1a 100644
 --- a/third_party/blink/renderer/core/dom/element.cc
 +++ b/third_party/blink/renderer/core/dom/element.cc
 @@ -29,6 +29,11 @@
@@ -33,9 +33,9 @@ index e57e5fbcf9c5e..5dd4f8661c74c 100644
  }
  
 +namespace {
-+double AspectDomrectNoise(uint64_t seed, int component) {
++double AspectDomrectScaleFactor(uint64_t seed, int component) {
 +  std::mt19937_64 rng(seed ^ static_cast<uint64_t>(component) * 2654435761u);
-+  return (static_cast<double>(rng() % 2001) - 1000.0) * 1e-7;
++  return 1.0 + (static_cast<double>(rng() % 2001) - 1000.0) * 3e-9;
 +}
 +uint64_t AspectGetDomrectSeed() {
 +  static const uint64_t s = []() -> uint64_t {
@@ -53,21 +53,22 @@ index e57e5fbcf9c5e..5dd4f8661c74c 100644
  DOMRectList* Element::getClientRects() {
    Vector<gfx::RectF> rects = GetClientRectsNoAdjustment();
    if (rects.empty()) {
-@@ -3423,6 +3446,13 @@ DOMRectList* Element::getClientRects() {
+@@ -3423,6 +3446,14 @@ DOMRectList* Element::getClientRects() {
      GetDocument().AdjustRectForScrollAndAbsoluteZoom(rect,
                                                       *element_layout_object);
    }
 +  uint64_t seed = AspectGetDomrectSeed();
 +  if (seed != 0) {
++    float fx = static_cast<float>(AspectDomrectScaleFactor(seed, 0));
++    float fy = static_cast<float>(AspectDomrectScaleFactor(seed, 1));
 +    for (auto& rect : rects) {
-+      rect.Offset(static_cast<float>(AspectDomrectNoise(seed, 0)),
-+                   static_cast<float>(AspectDomrectNoise(seed, 1)));
++      rect.Scale(fx, fy);
 +    }
 +  }
    return MakeGarbageCollected<DOMRectList>(rects);
  }
  
-@@ -3475,7 +3505,13 @@ gfx::RectF Element::GetBoundingClientRectNoLifecycleUpdate() const {
+@@ -3475,7 +3506,13 @@ gfx::RectF Element::GetBoundingClientRectNoLifecycleUpdate() const {
  DOMRect* Element::GetBoundingClientRect() {
    GetDocument().EnsurePaintLocationDataValidForNode(
        this, DocumentUpdateReason::kJavaScript);
@@ -75,15 +76,15 @@ index e57e5fbcf9c5e..5dd4f8661c74c 100644
 +  gfx::RectF r = GetBoundingClientRectNoLifecycleUpdate();
 +  uint64_t seed = AspectGetDomrectSeed();
 +  if (seed != 0 && r != gfx::RectF()) {
-+    r.Offset(static_cast<float>(AspectDomrectNoise(seed, 0)),
-+             static_cast<float>(AspectDomrectNoise(seed, 1)));
++    r.Scale(static_cast<float>(AspectDomrectScaleFactor(seed, 0)),
++            static_cast<float>(AspectDomrectScaleFactor(seed, 1)));
 +  }
 +  return DOMRect::FromRectF(r);
  }
  
  DOMRect* Element::GetBoundingClientRectForBinding() {
 diff --git a/third_party/blink/renderer/core/dom/range.cc b/third_party/blink/renderer/core/dom/range.cc
-index a9e08db4dc297..fb0375a657019 100644
+index a9e08db4dc297..52a34a6b1864f 100644
 --- a/third_party/blink/renderer/core/dom/range.cc
 +++ b/third_party/blink/renderer/core/dom/range.cc
 @@ -25,6 +25,11 @@
@@ -103,9 +104,9 @@ index a9e08db4dc297..fb0375a657019 100644
  }
  
 +namespace {
-+double AspectRangeDomrectNoise(uint64_t seed, int component) {
++double AspectRangeDomrectScaleFactor(uint64_t seed, int component) {
 +  std::mt19937_64 rng(seed ^ static_cast<uint64_t>(component) * 2654435761u);
-+  return (static_cast<double>(rng() % 2001) - 1000.0) * 1e-7;
++  return 1.0 + (static_cast<double>(rng() % 2001) - 1000.0) * 3e-9;
 +}
 +uint64_t AspectGetRangeDomrectSeed() {
 +  static const uint64_t s = []() -> uint64_t {
@@ -129,10 +130,10 @@ index a9e08db4dc297..fb0375a657019 100644
  
 +  uint64_t seed = AspectGetRangeDomrectSeed();
 +  if (seed != 0) {
-+    float dx = static_cast<float>(AspectRangeDomrectNoise(seed, 0));
-+    float dy = static_cast<float>(AspectRangeDomrectNoise(seed, 1));
++    float fx = static_cast<float>(AspectRangeDomrectScaleFactor(seed, 0));
++    float fy = static_cast<float>(AspectRangeDomrectScaleFactor(seed, 1));
 +    for (auto& quad : quads) {
-+      quad += gfx::Vector2dF(dx, dy);
++      quad.Scale(fx, fy);
 +    }
 +  }
 +
@@ -147,8 +148,8 @@ index a9e08db4dc297..fb0375a657019 100644
 +  gfx::RectF r = BoundingRect();
 +  uint64_t seed = AspectGetRangeDomrectSeed();
 +  if (seed != 0 && r != gfx::RectF()) {
-+    r.Offset(static_cast<float>(AspectRangeDomrectNoise(seed, 0)),
-+             static_cast<float>(AspectRangeDomrectNoise(seed, 1)));
++    r.Scale(static_cast<float>(AspectRangeDomrectScaleFactor(seed, 0)),
++            static_cast<float>(AspectRangeDomrectScaleFactor(seed, 1)));
 +  }
 +  return DOMRect::FromRectF(r);
  }

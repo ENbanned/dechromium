@@ -6,6 +6,31 @@ from urllib.parse import urlparse
 from dechromium._config import Config
 from dechromium.models import Profile
 
+_GL_PARAM_NAMES = {
+    "0D33": "MAX_TEXTURE_SIZE",
+    "851C": "MAX_CUBE_MAP_TEXTURE_SIZE",
+    "84E8": "MAX_RENDERBUFFER_SIZE",
+    "0D3D": "MAX_VIEWPORT_DIMS",
+    "8872": "MAX_TEXTURE_IMAGE_UNITS",
+    "8B4D": "MAX_COMBINED_TEXTURE_IMAGE_UNITS",
+    "8869": "MAX_VERTEX_ATTRIBS",
+    "8B4C": "MAX_VERTEX_TEXTURE_IMAGE_UNITS",
+    "8DFB": "MAX_VERTEX_UNIFORM_VECTORS",
+    "8DFD": "MAX_FRAGMENT_UNIFORM_VECTORS",
+    "8DFC": "MAX_VARYING_VECTORS",
+    "846E": "ALIASED_LINE_WIDTH_RANGE",
+    "846D": "ALIASED_POINT_SIZE_RANGE",
+    "0D50": "SUBPIXEL_BITS",
+    "0D52": "RED_BITS",
+    "0D53": "GREEN_BITS",
+    "0D54": "BLUE_BITS",
+    "0D55": "ALPHA_BITS",
+    "0D56": "DEPTH_BITS",
+    "0D57": "STENCIL_BITS",
+    "8073": "SAMPLE_BUFFERS",
+    "80A9": "SAMPLES",
+}
+
 
 def build_launch_args(profile: Profile, config: Config) -> list[str]:
     """Build Chrome command-line arguments for a profile."""
@@ -13,20 +38,29 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
     hw = profile.hardware
     ident = profile.identity
     wgl = profile.webgl
-    langs = ",".join(net.languages)
     data_dir = config.profiles_dir / profile.id / "chrome_data"
+
+    # Accept-Language with q-values: en-US,en;q=0.9,fr;q=0.8,...
+    _accept_lang = (
+        ",".join(
+            f"{lang};q={round(1.0 - i * 0.1, 1)}" if i > 0 else lang
+            for i, lang in enumerate(net.languages[:5])
+        )
+        if net.languages
+        else net.locale
+    )
 
     args = [
         str(config.browser_bin),
         f"--user-data-dir={data_dir}",
         f"--user-agent={ident.user_agent}",
         f"--lang={net.locale}",
-        f"--accept-lang={langs}",
-        f"--window-size={hw.screen_width},{hw.screen_height}",
+        f"--accept-lang={_accept_lang}",
+        f"--window-size={hw.avail_width},{hw.avail_height}",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-blink-features=AutomationControlled",
-        "--disable-features=AsyncDns,DnsOverHttps,DnsHttpssvc",
+        "--disable-features=AsyncDns,DnsOverHttps,DnsHttpssvc,WebGPUService",
         "--dns-over-https-mode=off",
         "--disable-domain-reliability",
         "--disable-background-networking",
@@ -70,13 +104,23 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
         ]
     )
 
+    # WebGL version strings (hide SwiftShader identity)
+    args.append("--aspect-webgl-version=WebGL 1.0 (OpenGL ES 3.0 Chromium)")
+    args.append("--aspect-webgl-glsl-version=WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 3.0 Chromium)")
+
     if wgl.params:
         pairs = []
         for enum_hex, val in wgl.params.items():
+            name = _GL_PARAM_NAMES.get(enum_hex.upper(), enum_hex)
             if isinstance(val, list):
-                pairs.append(f"{enum_hex}:{'/'.join(str(v) for v in val)}")
+                if name in ("MAX_VIEWPORT_DIMS",):
+                    pairs.append(f"{name}={val[0]}x{val[1]}")
+                elif name in ("ALIASED_LINE_WIDTH_RANGE", "ALIASED_POINT_SIZE_RANGE"):
+                    pairs.append(f"{name}={val[0]}-{val[1]}")
+                else:
+                    pairs.append(f"{name}={'x'.join(str(v) for v in val)}")
             else:
-                pairs.append(f"{enum_hex}:{val}")
+                pairs.append(f"{name}={val}")
         args.append(f"--aspect-webgl-params={','.join(pairs)}")
 
     if wgl.extensions:
@@ -100,6 +144,10 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
     if net.latitude is not None and net.longitude is not None:
         args.append(f"--aspect-geo-latitude={net.latitude}")
         args.append(f"--aspect-geo-longitude={net.longitude}")
+
+    # Font family allowlist (Blink-level filtering)
+    if profile.fonts.font_families:
+        args.append(f"--aspect-font-families={','.join(profile.fonts.font_families)}")
 
     return args
 

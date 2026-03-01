@@ -1,7 +1,7 @@
-From 313001e41dfef02824655ffd02e8ad4f1c8d0881 Mon Sep 17 00:00:00 2001
+From 4925bd0090ee512bf7d32e1c3ceaf4753daaf5d6 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:19:31 +0000
-Subject: [PATCH 06/11] 006-webgl-fingerprint
+Subject: [PATCH 06/12] 006-webgl-fingerprint
 
 Expanded WebGL fingerprint spoofing:
 - getParameter: 22 hardware params via --aspect-webgl-params (key=value CSV)
@@ -10,11 +10,58 @@ Expanded WebGL fingerprint spoofing:
 - getShaderPrecisionFormat: override HIGH/MEDIUM precision via
   --aspect-webgl-precision-high/medium (rangeMin,rangeMax,precision)
 ---
- .../webgl/webgl_rendering_context_base.cc     | 163 ++++++++++++++++++
- 1 file changed, 163 insertions(+)
+ .../webgl/webgl2_rendering_context_base.cc    |  13 +-
+ .../webgl/webgl_rendering_context_base.cc     | 204 ++++++++++++++++++
+ 2 files changed, 216 insertions(+), 1 deletion(-)
 
+diff --git a/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
+index 132e1b3724f9d..3920cc830296a 100644
+--- a/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
+@@ -6,11 +6,13 @@
+ 
+ #include <memory>
+ 
++#include "base/command_line.h"
+ #include "base/compiler_specific.h"
+ #include "base/containers/heap_array.h"
+ #include "base/numerics/checked_math.h"
+ #include "base/numerics/safe_conversions.h"
+ #include "gpu/command_buffer/client/gles2_interface.h"
++#include "third_party/blink/public/common/switches.h"
+ #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/webgl_any.h"
+ #include "third_party/blink/renderer/core/dom/document.h"
+@@ -4776,17 +4778,26 @@ ScriptValue WebGL2RenderingContextBase::getParameter(ScriptState* script_state,
+     return ScriptValue::CreateNull(script_state->GetIsolate());
+   switch (pname) {
+     case GL_SHADING_LANGUAGE_VERSION: {
++      const auto& cmd = *base::CommandLine::ForCurrentProcess();
++      if (cmd.HasSwitch(blink::switches::kAspectWebglGlslVersion))
++        return WebGLAny(script_state, String(cmd.GetSwitchValueASCII(
++            blink::switches::kAspectWebglGlslVersion)));
+       return WebGLAny(
+           script_state,
+           StrCat({"WebGL GLSL ES 3.00 (",
+                   String(ContextGL()->GetString(GL_SHADING_LANGUAGE_VERSION)),
+                   ")"}));
+     }
+-    case GL_VERSION:
++    case GL_VERSION: {
++      const auto& cmd = *base::CommandLine::ForCurrentProcess();
++      if (cmd.HasSwitch(blink::switches::kAspectWebglVersion))
++        return WebGLAny(script_state, String(cmd.GetSwitchValueASCII(
++            blink::switches::kAspectWebglVersion)));
+       return WebGLAny(
+           script_state,
+           StrCat({"WebGL 2.0 (", String(ContextGL()->GetString(GL_VERSION)),
+                   ")"}));
++    }
+ 
+     case GL_COPY_READ_BUFFER_BINDING:
+       return WebGLAny(script_state, bound_copy_read_buffer_.Get());
 diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
-index 72a80ba576711..0f89b382dbe02 100644
+index 72a80ba576711..e60f12eefb45f 100644
 --- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
 +++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
 @@ -110,6 +110,11 @@
@@ -50,10 +97,58 @@ index 72a80ba576711..0f89b382dbe02 100644
  enum class WebGLANGLEImplementation {
    // These values are persisted to logs. Entries should not be renumbered and
    // numeric values should never be reused.
-@@ -3767,6 +3786,83 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
+@@ -3650,6 +3669,25 @@ bool WebGLRenderingContextBase::TimerQueryExtensionsEnabled() {
+ 
+ ScriptObject WebGLRenderingContextBase::getExtension(ScriptState* script_state,
+                                                      const String& name) {
++  // Aspect: block extensions not in allowlist.
++  {
++    static const base::NoDestructor<std::string> ext_filter([]() -> std::string {
++      const auto& cmd = *base::CommandLine::ForCurrentProcess();
++      if (cmd.HasSwitch(blink::switches::kAspectWebglExtensions))
++        return cmd.GetSwitchValueASCII(blink::switches::kAspectWebglExtensions);
++      return {};
++    }());
++    if (!ext_filter->empty()) {
++      bool allowed = false;
++      for (const auto& a : base::SplitStringPiece(
++               *ext_filter, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++        if (name == String(a)) { allowed = true; break; }
++      }
++      if (!allowed)
++        return ScriptObject(script_state->GetIsolate(), v8::Null(script_state->GetIsolate()));
++    }
++  }
++
+   ExecutionContext* context = ExecutionContext::From(script_state);
+ 
+   if (name == WebGLDebugRendererInfo::ExtensionName()) {
+@@ -3767,6 +3805,105 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
                                                      GLenum pname) {
    if (isContextLost())
      return ScriptValue::CreateNull(script_state->GetIsolate());
++
++  // Aspect: GL_VERSION / GL_SHADING_LANGUAGE_VERSION spoofing.
++  if (pname == GL_VERSION) {
++    static const base::NoDestructor<std::string> ver([]() -> std::string {
++      const auto& cmd = *base::CommandLine::ForCurrentProcess();
++      if (cmd.HasSwitch(blink::switches::kAspectWebglVersion))
++        return cmd.GetSwitchValueASCII(blink::switches::kAspectWebglVersion);
++      return {};
++    }());
++    if (!ver->empty())
++      return WebGLAny(script_state, String(*ver));
++  }
++  if (pname == GL_SHADING_LANGUAGE_VERSION) {
++    static const base::NoDestructor<std::string> ver([]() -> std::string {
++      const auto& cmd = *base::CommandLine::ForCurrentProcess();
++      if (cmd.HasSwitch(blink::switches::kAspectWebglGlslVersion))
++        return cmd.GetSwitchValueASCII(blink::switches::kAspectWebglGlslVersion);
++      return {};
++    }());
++    if (!ver->empty())
++      return WebGLAny(script_state, String(*ver));
++  }
 +
 +  // Aspect: intercept hardware-dependent params with spoofed values.
 +  {
@@ -134,7 +229,7 @@ index 72a80ba576711..0f89b382dbe02 100644
    const int kIntZero = 0;
    switch (pname) {
      case GL_ACTIVE_TEXTURE:
-@@ -3976,6 +4072,12 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
+@@ -3976,6 +4113,12 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
        return ScriptValue::CreateNull(script_state->GetIsolate());
      case WebGLDebugRendererInfo::kUnmaskedRendererWebgl:
        if (ExtensionEnabled(kWebGLDebugRendererInfoName)) {
@@ -147,7 +242,7 @@ index 72a80ba576711..0f89b382dbe02 100644
          return WebGLAny(script_state,
                          String(ContextGL()->GetString(GL_RENDERER)));
        }
-@@ -3985,6 +4087,12 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
+@@ -3985,6 +4128,12 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
        return ScriptValue::CreateNull(script_state->GetIsolate());
      case WebGLDebugRendererInfo::kUnmaskedVendorWebgl:
        if (ExtensionEnabled(kWebGLDebugRendererInfoName)) {
@@ -160,7 +255,7 @@ index 72a80ba576711..0f89b382dbe02 100644
          return WebGLAny(script_state,
                          String(ContextGL()->GetString(GL_VENDOR)));
        }
-@@ -4286,6 +4394,35 @@ WebGLShaderPrecisionFormat* WebGLRenderingContextBase::getShaderPrecisionFormat(
+@@ -4286,6 +4435,35 @@ WebGLShaderPrecisionFormat* WebGLRenderingContextBase::getShaderPrecisionFormat(
    GLint precision = 0;
    ContextGL()->GetShaderPrecisionFormat(shader_type, precision_type, range,
                                          &precision);
@@ -196,7 +291,7 @@ index 72a80ba576711..0f89b382dbe02 100644
    return MakeGarbageCollected<WebGLShaderPrecisionFormat>(range[0], range[1],
                                                            precision);
  }
-@@ -4309,6 +4446,32 @@ WebGLRenderingContextBase::getSupportedExtensions() {
+@@ -4309,6 +4487,32 @@ WebGLRenderingContextBase::getSupportedExtensions() {
      }
    }
  

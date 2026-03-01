@@ -1,0 +1,92 @@
+From 1124ab80f5f927b7bcc5875c1b42da7e1288a43b Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Sun, 1 Mar 2026 22:54:58 +0000
+Subject: [PATCH 12/12] 012-font-allowlist
+
+Blink-level font family allowlist via --aspect-font-families flag.
+
+When set, GetFontData() returns nullptr for families not in the
+comma-separated allowlist. CSS generic families (serif, sans-serif,
+monospace, etc.) always pass through.
+
+This ensures font enumeration tests only see the expected set of
+fonts for the spoofed platform, regardless of what's installed on
+the host system.
+---
+ .../renderer/platform/fonts/font_cache.cc     | 40 +++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+
+diff --git a/third_party/blink/renderer/platform/fonts/font_cache.cc b/third_party/blink/renderer/platform/fonts/font_cache.cc
+index 7344fa93eb881..5d28c37d5d6be 100644
+--- a/third_party/blink/renderer/platform/fonts/font_cache.cc
++++ b/third_party/blink/renderer/platform/fonts/font_cache.cc
+@@ -32,8 +32,13 @@
+ #include <limits>
+ #include <memory>
+ 
++#include "base/command_line.h"
++#include "base/containers/flat_set.h"
+ #include "base/debug/alias.h"
+ #include "base/feature_list.h"
++#include "base/no_destructor.h"
++#include "base/strings/string_split.h"
++#include "base/strings/string_util.h"
+ #include "base/notreached.h"
+ #include "base/strings/escape.h"
+ #include "base/system/sys_info.h"
+@@ -43,6 +48,7 @@
+ #include "build/build_config.h"
+ #include "skia/ext/font_utils.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/switches.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/renderer/platform/font_family_names.h"
+ #include "third_party/blink/renderer/platform/fonts/alternate_font_family.h"
+@@ -149,10 +155,44 @@ void FontCache::AcceptLanguagesChanged(const String& accept_languages) {
+   LayoutLocale::AcceptLanguagesChanged(accept_languages);
+ }
+ 
++namespace {
++const base::flat_set<std::string>* AspectGetAllowedFontFamilies() {
++  static const base::NoDestructor<base::flat_set<std::string>> families([] {
++    base::flat_set<std::string> result;
++    const auto& cmd = *base::CommandLine::ForCurrentProcess();
++    if (cmd.HasSwitch(blink::switches::kAspectFontFamilies)) {
++      for (auto& piece : base::SplitString(
++               cmd.GetSwitchValueASCII(blink::switches::kAspectFontFamilies),
++               ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++        result.insert(base::ToLowerASCII(piece));
++      }
++    }
++    return result;
++  }());
++  return families->empty() ? nullptr : families.get();
++}
++
++bool AspectIsGenericFamily(const AtomicString& family) {
++  return family == "serif" || family == "sans-serif" || family == "monospace" ||
++         family == "cursive" || family == "fantasy" || family == "system-ui" ||
++         family == "math" || family == "emoji" || family == "ui-serif" ||
++         family == "ui-sans-serif" || family == "ui-monospace" ||
++         family == "ui-rounded";
++}
++}  // namespace
++
+ const SimpleFontData* FontCache::GetFontData(
+     const FontDescription& font_description,
+     const AtomicString& family,
+     AlternateFontName altername_font_name) {
++  // Aspect: font family allowlist filtering
++  if (const auto* allowed = AspectGetAllowedFontFamilies()) {
++    if (!AspectIsGenericFamily(family) &&
++        !allowed->contains(base::ToLowerASCII(family.Utf8()))) {
++      return nullptr;
++    }
++  }
++
+   if (const FontPlatformData* platform_data = GetFontPlatformData(
+           font_description,
+           FontFaceCreationParams(
+-- 
+2.39.5
+

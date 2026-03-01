@@ -7,6 +7,14 @@ from typing import Any
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 _DB_CACHE: dict | None = None
+_FONT_FAMILIES_DATA: dict | None = None
+
+
+def _load_font_families() -> dict:
+    global _FONT_FAMILIES_DATA
+    if _FONT_FAMILIES_DATA is None:
+        _FONT_FAMILIES_DATA = json.loads((_DATA_DIR / "font_families.json").read_text())
+    return _FONT_FAMILIES_DATA
 
 
 def _load_db() -> dict:
@@ -146,10 +154,15 @@ class DiversityEngine:
             "canvas_seed": f"{self._rng.getrandbits(48):012x}",
             "audio_seed": f"{self._rng.getrandbits(48):012x}",
             "clientrects_seed": f"{self._rng.getrandbits(48):012x}",
-            "webgl_seed": f"{self._rng.getrandbits(48):012x}",
         }
 
-        avail_height = screen[1] - self._rng.choice([40, 48, 56, 72])
+        if platform == "Win32":
+            taskbar_h = self._rng.choice([40, 48])
+        elif platform == "MacIntel":
+            taskbar_h = 25
+        else:
+            taskbar_h = self._rng.choice([27, 36, 48])
+        avail_height = screen[1] - taskbar_h
 
         return {
             "identity": identity,
@@ -172,7 +185,10 @@ class DiversityEngine:
                 "shader_precision_medium": list(backend["shader_precision"]["medium_float"]),
             },
             "noise": noise,
-            "fonts": {"font_pack": font_pack},
+            "fonts": {
+                "font_pack": font_pack,
+                "font_families": list(_load_font_families().get(font_pack, [])),
+            },
         }
 
     def _pick_gpu(

@@ -28,6 +28,7 @@ class BrowserPool:
         headless: bool = True,
         extra_args: list[str] | None = None,
         timeout: float = 15.0,
+        screen_resolution: str = "1920x1080x24",
     ) -> BrowserInfo:
         existing = self._browsers.get(profile_id)
         if existing and existing.is_running and existing.info:
@@ -39,14 +40,12 @@ class BrowserPool:
             launch_args.append("--headless=new")
         elif sys.platform != "win32":
             if not self._display:
-                self._display = VirtualDisplay()
+                self._display = VirtualDisplay(resolution=screen_resolution)
             if not self._display.is_running:
                 self._display.start()
             launch_env["DISPLAY"] = self._display.display_str
-        if sys.platform == "win32":
-            if headless:
-                launch_args.append("--enable-unsafe-swiftshader")
-        elif not os.environ.get("DISPLAY") or not headless:
+        # SwiftShader for software rendering: always in headless, or on Linux without display
+        if headless or (sys.platform != "win32" and not os.environ.get("DISPLAY")):
             launch_args.append("--enable-unsafe-swiftshader")
         if extra_args:
             launch_args.extend(extra_args)

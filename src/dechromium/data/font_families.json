@@ -1,0 +1,29 @@
+{
+  "windows": [
+    "Arial", "Arial Black", "Bahnschrift", "Calibri", "Cambria",
+    "Cambria Math", "Candara", "Comic Sans MS", "Consolas",
+    "Constantia", "Corbel", "Courier New", "Ebrima",
+    "Franklin Gothic Medium", "Gabriola", "Gadugi", "Georgia",
+    "Impact", "Ink Free", "Lucida Console", "Lucida Sans Unicode",
+    "Microsoft Sans Serif", "Palatino Linotype", "Segoe Print",
+    "Segoe Script", "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Sitka Banner", "Sitka Display", "Sitka Heading", "Sitka Small",
+    "Sitka Subheading", "Sitka Text", "Sylfaen", "Symbol", "Tahoma",
+    "Times New Roman", "Trebuchet MS", "Verdana", "Webdings",
+    "Wingdings", "Yu Gothic", "Yu Gothic UI",
+    "Malgun Gothic", "Microsoft JhengHei", "Microsoft YaHei",
+    "MS Gothic", "SimSun"
+  ],
+  "macos": [
+    "Arial", "Arial Black", "Avenir", "Avenir Next", "Baskerville",
+    "Courier New", "Futura", "Geneva", "Georgia", "Gill Sans",
+    "Helvetica", "Helvetica Neue", "Lucida Grande", "Menlo", "Monaco",
+    "Optima", "Palatino", "SF Pro", "SF Mono", "Symbol",
+    "Times New Roman", "Trebuchet MS", "Verdana"
+  ],
+  "linux": [
+    "Arial", "Courier New", "DejaVu Sans", "DejaVu Sans Mono",
+    "DejaVu Serif", "Georgia", "Liberation Mono", "Liberation Sans",
+    "Liberation Serif", "Times New Roman", "Trebuchet MS", "Verdana"
+  ]
+}
