@@ -17,6 +17,10 @@ class BrowserError(DechromiumError):
     """Base exception for browser-related errors."""
 
 
+class BrowserNotInstalledError(BrowserError):
+    """Raised when the Chromium binary is not found on disk."""
+
+
 class BrowserNotRunningError(BrowserError):
     """Raised when an operation requires a running browser but none is found."""
 

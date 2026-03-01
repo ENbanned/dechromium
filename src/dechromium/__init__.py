@@ -2,6 +2,7 @@ from dechromium._client import Dechromium
 from dechromium._config import Config
 from dechromium._exceptions import (
     BrowserError,
+    BrowserNotInstalledError,
     BrowserNotRunningError,
     BrowserTimeoutError,
     DechromiumError,
@@ -26,12 +27,13 @@ from dechromium.models import (
     WebRTCPolicy,
 )
 
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 
 __all__ = [
     "BrowserError",
     "BrowserInfo",
     "BrowserManager",
+    "BrowserNotInstalledError",
     "BrowserNotRunningError",
     "BrowserTimeoutError",
     "ColorDepth",

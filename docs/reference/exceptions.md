@@ -8,6 +8,7 @@ DechromiumError
 ├── ProfileExistsError
 ├── InstallError
 ├── BrowserError
+│   ├── BrowserNotInstalledError
 │   ├── BrowserNotRunningError
 │   └── BrowserTimeoutError
 └── DisplayError
@@ -72,6 +73,21 @@ try:
 except BrowserError as e:
     print(f"Browser failed: {e}")
 ```
+
+## BrowserNotInstalledError
+
+Raised when the Chromium binary is not found on disk. Includes install instructions in the error message.
+
+```python
+from dechromium import BrowserNotInstalledError
+
+try:
+    browser = dc.start(profile.id)
+except BrowserNotInstalledError:
+    print("Run: dechromium install")
+```
+
+**Raised by:** `Dechromium.start()`
 
 ## BrowserNotRunningError
 

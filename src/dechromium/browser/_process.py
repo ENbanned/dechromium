@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from dechromium._exceptions import BrowserError, BrowserTimeoutError
+from dechromium._exceptions import BrowserError, BrowserNotInstalledError, BrowserTimeoutError
 
 
 @dataclass(slots=True)
@@ -56,7 +56,13 @@ class BrowserProcess:
         else:
             popen_kwargs["start_new_session"] = True
 
-        self._proc = subprocess.Popen(full_args, **popen_kwargs)
+        try:
+            self._proc = subprocess.Popen(full_args, **popen_kwargs)
+        except FileNotFoundError:
+            binary = full_args[0] if full_args else "chrome"
+            raise BrowserNotInstalledError(
+                f"Chromium binary not found: {binary}\nInstall it with: dechromium install"
+            ) from None
 
         cdp_url = f"http://127.0.0.1:{self.debug_port}"
 

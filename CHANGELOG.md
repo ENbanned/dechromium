@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+### Added
+
+- `BrowserNotInstalledError` exception — clear error message when Chromium binary is not found, with install instructions
+
 ## 0.6.2
 
 ### Fixed
