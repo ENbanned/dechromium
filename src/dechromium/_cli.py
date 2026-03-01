@@ -27,6 +27,8 @@ def main():
         _check(args[1:])
     elif cmd == "upgrade-profiles":
         _upgrade_profiles(args[1:])
+    elif cmd == "destroy":
+        _destroy(args[1:])
     elif cmd == "version":
         from dechromium import __version__
 
@@ -211,6 +213,53 @@ def _upgrade_profiles(args: list[str]):
     print(f"\nDone. {len(upgraded)} profile(s) upgraded.")
 
 
+def _destroy(args: list[str]):
+    if args and args[0] == "--help":
+        print("Usage: dechromium destroy [--yes]")
+        print()
+        print("Completely remove dechromium: all data, profiles, browsers,")
+        print("and the pip package itself.")
+        print()
+        print("Options:")
+        print("  --yes    Skip confirmation prompt")
+        return
+
+    import shutil
+    import subprocess
+
+    from dechromium._config import _default_data_dir
+
+    data_dir = _default_data_dir()
+    skip_confirm = "--yes" in args
+
+    print("This will permanently delete:")
+    print(f"  {data_dir}/            (profiles, browsers, fonts, geoip)")
+    print("  dechromium pip package")
+    print()
+
+    if not skip_confirm:
+        answer = input("Are you sure? Type 'yes' to confirm: ")
+        if answer.strip().lower() != "yes":
+            print("Aborted.")
+            return
+
+    # 1. Remove data directory
+    if data_dir.exists():
+        shutil.rmtree(data_dir)
+        print(f"  Removed {data_dir}")
+    else:
+        print(f"  {data_dir} does not exist, skipping")
+
+    # 2. Uninstall pip package (must be last — we're running from it)
+    print("  Uninstalling dechromium package...")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "dechromium", "-y"],
+        check=False,
+    )
+    print()
+    print("dechromium has been completely removed.")
+
+
 def _serve(args: list[str]):
     host = "127.0.0.1"
     port = 3789
@@ -253,6 +302,7 @@ def _usage():
     print()
     print("Info:")
     print("  version                              Show library version")
+    print("  destroy [--yes]                      Remove all data + uninstall package")
     print()
     print("Python library:")
     print("  from dechromium import Dechromium")

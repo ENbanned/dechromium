@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+### Added
+
+- `dechromium destroy [--yes]` CLI command — completely removes all data (profiles, browsers, fonts, geoip) and uninstalls the pip package
+
 ## 0.6.0
 
 Profile versioning and upgrade system.
