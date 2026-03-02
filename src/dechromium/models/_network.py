@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ._enums import WebRTCPolicy
 
@@ -10,8 +10,8 @@ class Network(BaseModel):
     proxy_username: str = ""
     proxy_password: str = ""
     webrtc_policy: WebRTCPolicy = WebRTCPolicy.DISABLE_NON_PROXIED_UDP
-    timezone: str = "America/New_York"
-    locale: str = "en-US"
-    languages: list[str] = Field(default_factory=lambda: ["en-US", "en"])
+    timezone: str | None = None
+    locale: str | None = None
+    languages: list[str] | None = None
     latitude: float | None = None
     longitude: float | None = None

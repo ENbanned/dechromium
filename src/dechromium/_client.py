@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextlib
+import logging
+import random
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -11,6 +13,9 @@ from dechromium.browser import BrowserInfo, BrowserPool
 from dechromium.browser._cookies import export_cookies, import_cookies
 from dechromium.models import Platform, Profile
 from dechromium.profile import DiversityEngine, ProfileManager
+from dechromium.profile._launcher import build_launch_args, build_launch_env
+
+logger = logging.getLogger(__name__)
 
 _COUNTRY_LOCALES: dict | None = None
 
@@ -109,7 +114,6 @@ class Dechromium:
         auto: bool = True,
         seed: int | None = None,
     ) -> Profile:
-        # Normalize platform enum to string
         platform_str = platform.value if isinstance(platform, Platform) else platform
 
         if auto:
@@ -149,11 +153,6 @@ class Dechromium:
                 notes=notes,
             )
 
-            # Auto-detect geo from proxy when timezone/locale not explicit
-            if proxy and not timezone and not locale:
-                _apply_auto_geo(overrides, proxy, self.config.data_dir)
-
-            # Merge: generated is base, user overrides on top
             for section in ("identity", "hardware", "webgl", "noise", "fonts"):
                 if section in overrides:
                     generated.setdefault(section, {}).update(overrides[section])
@@ -181,10 +180,6 @@ class Dechromium:
                 fonts=fonts,
                 notes=notes,
             )
-
-            # Auto-detect geo from proxy when timezone/locale not explicit
-            if proxy and not timezone and not locale:
-                _apply_auto_geo(overrides, proxy, self.config.data_dir)
 
         return self._manager.create(name, **overrides)
 
@@ -223,12 +218,6 @@ class Dechromium:
             if val is not None:
                 overrides[key] = val
 
-        # Re-run auto-geo if proxy changed and no explicit timezone/locale
-        if network and "proxy" in network:
-            proxy = network["proxy"]
-            if proxy and "timezone" not in network and "locale" not in network:
-                _apply_auto_geo(overrides, proxy, self.config.data_dir)
-
         return self._manager.update(profile_id, **overrides)
 
     def delete(self, profile_id: str) -> bool:
@@ -244,8 +233,9 @@ class Dechromium:
         timeout: float = 15.0,
     ) -> BrowserInfo:
         profile = self._manager.get(profile_id)
-        args = self._manager.launch_args(profile_id)
-        env = self._manager.launch_env(profile_id)
+        resolved = _resolve_network(profile, self.config.data_dir)
+        args = build_launch_args(resolved, self.config)
+        env = build_launch_env(resolved, self.config)
         res = f"{profile.hardware.screen_width}x{profile.hardware.screen_height}x24"
         return self._pool.start(
             profile_id,
@@ -286,38 +276,18 @@ class Dechromium:
         force: bool = False,
         progress: bool = True,
     ) -> Path:
-        """Download and install patched Chromium.
-
-        Args:
-            version: Chromium version. If None, installs the latest from GitHub.
-            force: Re-download even if already installed.
-            progress: Show download progress.
-
-        Returns:
-            Path to the installed chrome binary.
-        """
         return self._browsers.install(version, force=force, progress=progress)
 
     def update_browsers(self, *, progress: bool = True) -> list[str]:
-        """Check for updates to installed browsers.
-
-        Returns list of versions that were updated.
-        """
         return self._browsers.update(progress=progress)
 
     def list_browsers(self) -> list[dict]:
-        """List locally installed browser versions."""
         return self._browsers.installed()
 
     def uninstall_browser(self, version: str) -> bool:
-        """Remove an installed Chromium version."""
         return self._browsers.uninstall(version)
 
     def check_profiles(self) -> list[dict]:
-        """Check which profiles were created with an older library version.
-
-        Returns list of dicts with profile info and whether it needs upgrading.
-        """
         from dechromium import __version__
 
         results = []
@@ -335,32 +305,16 @@ class Dechromium:
         return results
 
     def upgrade_profiles(self, *, progress: bool = True) -> list[str]:
-        """Upgrade outdated profiles with latest auto-detection logic.
-
-        Re-runs auto-geo for profiles with a proxy, stamps current library_version.
-
-        Returns list of upgraded profile IDs.
-        """
         from dechromium import __version__
 
         upgraded = []
         for profile in self._manager.list_all():
             if profile.library_version == __version__:
                 continue
-
-            changes = _refresh_profile(profile, self.config.data_dir)
-            profile.library_version = __version__
-            overrides: dict = {}
-            if changes:
-                overrides["network"] = changes
-            overrides["library_version"] = __version__
-            self._manager.update(profile.id, **overrides)
-
+            self._manager.update(profile.id, library_version=__version__)
             if progress:
-                detail = f" (updated: {', '.join(changes)})" if changes else ""
-                print(f"  Upgraded {profile.name} ({profile.id}){detail}")
+                print(f"  Upgraded {profile.name} ({profile.id})")
             upgraded.append(profile.id)
-
         return upgraded
 
     def serve(self, host: str | None = None, port: int | None = None):
@@ -487,91 +441,65 @@ def _load_country_locales() -> dict:
     return _COUNTRY_LOCALES
 
 
-def _apply_auto_geo(overrides: dict, proxy: str, data_dir: Path) -> None:
-    """Auto-fill timezone/locale/languages/geolocation from proxy IP."""
-    import logging
-    import random
+def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
+    """Resolve None network fields from proxy GeoIP at launch time.
 
-    from dechromium._geoip import lookup, resolve_proxy_ip
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        ip = resolve_proxy_ip(proxy)
-        geo = lookup(ip, data_dir)
-    except Exception:
-        logger.debug("Auto-geo failed for proxy %s", proxy, exc_info=True)
-        return
-
-    if not geo:
-        return
-
-    net = overrides.setdefault("network", {})
-    if geo.timezone:
-        net.setdefault("timezone", geo.timezone)
-
-    country_map = _load_country_locales()
-    info = country_map.get(geo.country_code)
-    if info:
-        net.setdefault("locale", info["locale"])
-        net.setdefault("languages", info["languages"])
-
-    # Jitter coordinates by ~1km to avoid exact GeoIP center
-    if geo.latitude is not None:
-        net.setdefault("latitude", round(geo.latitude + random.uniform(-0.01, 0.01), 6))
-    if geo.longitude is not None:
-        net.setdefault("longitude", round(geo.longitude + random.uniform(-0.01, 0.01), 6))
-
-
-# -- Network defaults used to detect "user never set this" ------------------
-_NET_DEFAULTS = {
-    "timezone": "America/New_York",
-    "locale": "en-US",
-    "languages": ["en-US", "en"],
-}
-
-
-def _refresh_profile(profile: Profile, data_dir: Path) -> dict:
-    """Re-run auto-detection logic on an existing profile.
-
-    Returns a dict of network field changes to apply (empty if nothing to do).
-    This function is generic — future auto-detection features should be added here.
+    Returns a profile copy with all network fields filled in.
+    None = auto-detect from proxy IP (or use defaults if no proxy).
+    Explicit values are never overridden.
     """
-    import logging
-
-    from dechromium._geoip import lookup, resolve_proxy_ip
-
-    logger = logging.getLogger(__name__)
-    changes: dict = {}
     net = profile.network
+    updates: dict = {}
 
-    # -- Auto-geo from proxy (added in 0.5.0) ------------------------------
     if net.proxy:
-        try:
-            ip = resolve_proxy_ip(net.proxy)
-            geo = lookup(ip, data_dir)
-        except Exception:
-            logger.debug("refresh: geo lookup failed for %s", net.proxy, exc_info=True)
-            geo = None
+        geo = _lookup_proxy_geo(net.proxy, data_dir)
 
         if geo:
-            # Fill None fields unconditionally
-            if net.latitude is None and geo.latitude is not None:
-                changes["latitude"] = geo.latitude
-            if net.longitude is None and geo.longitude is not None:
-                changes["longitude"] = geo.longitude
+            if net.timezone is None:
+                updates["timezone"] = geo.timezone or "America/New_York"
+            elif geo.timezone and net.timezone != geo.timezone:
+                logger.warning(
+                    "Timezone mismatch: profile has %r but proxy IP resolves to %r",
+                    net.timezone,
+                    geo.timezone,
+                )
 
-            # Replace default-valued fields (user never explicitly set them)
-            if net.timezone == _NET_DEFAULTS["timezone"] and geo.timezone:
-                changes["timezone"] = geo.timezone
-            if net.locale == _NET_DEFAULTS["locale"]:
+            if net.locale is None or net.languages is None:
                 country_map = _load_country_locales()
                 info = country_map.get(geo.country_code)
                 if info:
-                    changes["locale"] = info["locale"]
-                    if net.languages == _NET_DEFAULTS["languages"]:
-                        changes["languages"] = info["languages"]
+                    if net.locale is None:
+                        updates["locale"] = info["locale"]
+                    if net.languages is None:
+                        updates["languages"] = info["languages"]
 
-    # -- Future auto-detection features go here ----------------------------
+            if net.latitude is None and geo.latitude is not None:
+                updates["latitude"] = round(geo.latitude + random.uniform(-0.01, 0.01), 6)
+            if net.longitude is None and geo.longitude is not None:
+                updates["longitude"] = round(geo.longitude + random.uniform(-0.01, 0.01), 6)
 
-    return changes
+    # Fallback defaults for anything still None
+    if net.timezone is None and "timezone" not in updates:
+        updates["timezone"] = "America/New_York"
+    if net.locale is None and "locale" not in updates:
+        updates["locale"] = "en-US"
+    if net.languages is None and "languages" not in updates:
+        updates["languages"] = ["en-US", "en"]
+
+    if not updates:
+        return profile
+
+    resolved_net = net.model_copy(update=updates)
+    return profile.model_copy(update={"network": resolved_net})
+
+
+def _lookup_proxy_geo(proxy: str, data_dir: Path):
+    """Resolve proxy IP and look up GeoInfo. Returns GeoInfo or None."""
+    from dechromium._geoip import lookup, resolve_proxy_ip
+
+    try:
+        ip = resolve_proxy_ip(proxy)
+        return lookup(ip, data_dir)
+    except Exception:
+        logger.debug("GeoIP lookup failed for proxy %s", proxy, exc_info=True)
+        return None

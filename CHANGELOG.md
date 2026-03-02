@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+### Changed
+
+- **Network model**: `timezone`, `locale`, `languages` are now `None` by default instead of hardcoded values; `None` means "auto-detect from proxy IP at launch time"
+- **Geo resolution**: moved from scattered calls in `create()`/`update()` to a single `_resolve_network()` at `start()` time — profile stores user intent, resolution happens at launch
+- Warns when explicit timezone doesn't match proxy IP geolocation
+
+### Removed
+
+- `_apply_auto_geo()`, `_refresh_profile()`, `_NET_DEFAULTS` — replaced by single `_resolve_network()`
+
 ## 0.7.1
 
 ### Fixed
