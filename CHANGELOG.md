@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1
+
+### Fixed
+
+- `destroy` command: run both pip and uv uninstall (was stopping at first success, never reaching uv)
+- Accept-Language header: remove q-values from `--accept-lang` (Chrome adds them internally)
+- WebGL params: remove wrong `0x8073` → `SAMPLE_BUFFERS` mapping; skip unrecognized WebGL2 hex params
+
 ## 0.8.0
 
 ### Changed
