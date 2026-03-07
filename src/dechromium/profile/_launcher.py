@@ -36,10 +36,12 @@ def build_launch_args(profile: Profile, config: Config, *, headless: bool = True
         "--blink-settings=preferredColorScheme=1",
     ]
 
-    # In headless mode, force window to match spoofed screen (virtual display).
-    # In headed mode, let Chrome auto-size to the real monitor.
+    # Headless: force window to match spoofed screen (virtual display).
+    # Headed: use real monitor, start maximized like a normal browser.
     if headless:
         args.append(f"--window-size={hw.avail_width},{hw.avail_height}")
+    else:
+        args.append("--start-maximized")
 
     if net.proxy:
         args.append(f"--proxy-server={net.proxy}")
@@ -66,12 +68,6 @@ def build_launch_args(profile: Profile, config: Config, *, headless: bool = True
             f"--aspect-platform={ident.platform}",
             f"--aspect-hardware-concurrency={hw.cores}",
             f"--aspect-device-memory={float(hw.memory)}",
-            f"--aspect-screen-width={hw.screen_width}",
-            f"--aspect-screen-height={hw.screen_height}",
-            f"--aspect-screen-avail-width={hw.avail_width}",
-            f"--aspect-screen-avail-height={hw.avail_height}",
-            f"--aspect-color-depth={int(hw.color_depth)}",
-            f"--aspect-device-pixel-ratio={hw.pixel_ratio}",
             f"--aspect-ua-platform={ident.ua_platform}",
             f"--aspect-ua-platform-version={ident.ua_platform_version}",
             f"--aspect-ua-arch={ident.ua_arch}",
@@ -80,9 +76,22 @@ def build_launch_args(profile: Profile, config: Config, *, headless: bool = True
             f"--aspect-domrect-noise-seed={domrect_seed}",
             f"--aspect-webgl-vendor={wgl.vendor}",
             f"--aspect-webgl-renderer={wgl.renderer}",
-            f"--aspect-screen-avail-top={hw.avail_top}",
         ]
     )
+
+    # Screen dimensions: spoof in headless (virtual display), use real monitor in headed.
+    if headless:
+        args.extend(
+            [
+                f"--aspect-screen-width={hw.screen_width}",
+                f"--aspect-screen-height={hw.screen_height}",
+                f"--aspect-screen-avail-width={hw.avail_width}",
+                f"--aspect-screen-avail-height={hw.avail_height}",
+                f"--aspect-color-depth={int(hw.color_depth)}",
+                f"--aspect-device-pixel-ratio={hw.pixel_ratio}",
+                f"--aspect-screen-avail-top={hw.avail_top}",
+            ]
+        )
 
     # Scrollbar style: overlay for macOS (0px), fluent for Windows/Linux (15px)
     scrollbar_style = "overlay" if ident.platform == "MacIntel" else "fluent"

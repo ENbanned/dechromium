@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.1
+
+### Changed
+
+- Headed mode: screen dimensions (`screen.width/height`, `availWidth/Height`, `devicePixelRatio`, `colorDepth`) use the real monitor instead of spoofed values — matches AdsPower/Multilogin behavior; all other fingerprint spoofing (WebGL, canvas, audio, fonts, UA, etc.) still active
+- Headed mode: `--start-maximized` opens the browser fullscreen like a normal browser
+- Headless mode: unchanged — screen dimensions are spoofed and window matches virtual display
+
 ## 0.12.0
 
 ### Changed
