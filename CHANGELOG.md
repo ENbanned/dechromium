@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.3
+
+### Fixed
+
+- Network resolution: auto-detect timezone/locale/languages from public IP when no proxy is set (was hardcoded to `America/New_York`, causing timezone mismatch on BrowserScan)
+- GeoIP: added `resolve_public_ip()` for proxy-less geo resolution
+- GeoIP: added country→timezone fallback map (100+ countries) for when DB-IP Lite returns empty timezone
+
 ## 0.9.2
 
 Fingerprint audit v3 — fix BrowserLeaks detections.

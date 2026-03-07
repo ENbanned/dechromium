@@ -22,6 +22,108 @@ _META_FILE = ".geoip_meta.json"
 _DB_NAME = "dbip-city-lite.mmdb"
 _STALE_DAYS = 35
 
+# Fallback when DB-IP Lite doesn't return timezone for an IP.
+# Primary timezone per country (covers datacentre / VPN locations).
+_COUNTRY_TIMEZONES: dict[str, str] = {
+    "AD": "Europe/Andorra",
+    "AE": "Asia/Dubai",
+    "AF": "Asia/Kabul",
+    "AL": "Europe/Tirane",
+    "AM": "Asia/Yerevan",
+    "AR": "America/Argentina/Buenos_Aires",
+    "AT": "Europe/Vienna",
+    "AU": "Australia/Sydney",
+    "AZ": "Asia/Baku",
+    "BA": "Europe/Sarajevo",
+    "BD": "Asia/Dhaka",
+    "BE": "Europe/Brussels",
+    "BG": "Europe/Sofia",
+    "BH": "Asia/Bahrain",
+    "BR": "America/Sao_Paulo",
+    "BY": "Europe/Minsk",
+    "CA": "America/Toronto",
+    "CH": "Europe/Zurich",
+    "CL": "America/Santiago",
+    "CN": "Asia/Shanghai",
+    "CO": "America/Bogota",
+    "CR": "America/Costa_Rica",
+    "CY": "Asia/Nicosia",
+    "CZ": "Europe/Prague",
+    "DE": "Europe/Berlin",
+    "DK": "Europe/Copenhagen",
+    "DO": "America/Santo_Domingo",
+    "DZ": "Africa/Algiers",
+    "EC": "America/Guayaquil",
+    "EE": "Europe/Tallinn",
+    "EG": "Africa/Cairo",
+    "ES": "Europe/Madrid",
+    "FI": "Europe/Helsinki",
+    "FR": "Europe/Paris",
+    "GB": "Europe/London",
+    "GE": "Asia/Tbilisi",
+    "GR": "Europe/Athens",
+    "HK": "Asia/Hong_Kong",
+    "HR": "Europe/Zagreb",
+    "HU": "Europe/Budapest",
+    "ID": "Asia/Jakarta",
+    "IE": "Europe/Dublin",
+    "IL": "Asia/Jerusalem",
+    "IN": "Asia/Kolkata",
+    "IQ": "Asia/Baghdad",
+    "IR": "Asia/Tehran",
+    "IS": "Atlantic/Reykjavik",
+    "IT": "Europe/Rome",
+    "JO": "Asia/Amman",
+    "JP": "Asia/Tokyo",
+    "KE": "Africa/Nairobi",
+    "KG": "Asia/Bishkek",
+    "KH": "Asia/Phnom_Penh",
+    "KR": "Asia/Seoul",
+    "KW": "Asia/Kuwait",
+    "KZ": "Asia/Almaty",
+    "LB": "Asia/Beirut",
+    "LT": "Europe/Vilnius",
+    "LU": "Europe/Luxembourg",
+    "LV": "Europe/Riga",
+    "MA": "Africa/Casablanca",
+    "MD": "Europe/Chisinau",
+    "ME": "Europe/Podgorica",
+    "MK": "Europe/Skopje",
+    "MM": "Asia/Yangon",
+    "MN": "Asia/Ulaanbaatar",
+    "MX": "America/Mexico_City",
+    "MY": "Asia/Kuala_Lumpur",
+    "NG": "Africa/Lagos",
+    "NL": "Europe/Amsterdam",
+    "NO": "Europe/Oslo",
+    "NZ": "Pacific/Auckland",
+    "OM": "Asia/Muscat",
+    "PA": "America/Panama",
+    "PE": "America/Lima",
+    "PH": "Asia/Manila",
+    "PK": "Asia/Karachi",
+    "PL": "Europe/Warsaw",
+    "PT": "Europe/Lisbon",
+    "QA": "Asia/Qatar",
+    "RO": "Europe/Bucharest",
+    "RS": "Europe/Belgrade",
+    "RU": "Europe/Moscow",
+    "SA": "Asia/Riyadh",
+    "SE": "Europe/Stockholm",
+    "SG": "Asia/Singapore",
+    "SI": "Europe/Ljubljana",
+    "SK": "Europe/Bratislava",
+    "TH": "Asia/Bangkok",
+    "TN": "Africa/Tunis",
+    "TR": "Europe/Istanbul",
+    "TW": "Asia/Taipei",
+    "UA": "Europe/Kyiv",
+    "US": "America/New_York",
+    "UZ": "Asia/Tashkent",
+    "VN": "Asia/Ho_Chi_Minh",
+    "ZA": "Africa/Johannesburg",
+}
+
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class GeoInfo:
@@ -154,7 +256,7 @@ def lookup(ip: str, data_dir: Path) -> GeoInfo | None:
         return None
 
     location = record.get("location", {})
-    timezone = location.get("time_zone", "")
+    timezone = location.get("time_zone", "") or _COUNTRY_TIMEZONES.get(country_code, "")
     latitude = location.get("latitude")
     longitude = location.get("longitude")
 
@@ -172,6 +274,28 @@ def lookup(ip: str, data_dir: Path) -> GeoInfo | None:
         longitude=float(longitude),
         city=city,
     )
+
+
+def resolve_public_ip() -> str | None:
+    """Detect the machine's public IP address.
+
+    Tries multiple services for reliability. Returns IP string or None.
+    """
+    services = [
+        "https://api.ipify.org",
+        "https://ifconfig.me/ip",
+        "https://checkip.amazonaws.com",
+    ]
+    for url in services:
+        try:
+            req = Request(url, headers={"User-Agent": "dechromium"})
+            with urlopen(req, timeout=5) as resp:
+                ip = resp.read().decode().strip()
+                if ip:
+                    return ip
+        except Exception:
+            continue
+    return None
 
 
 def resolve_proxy_ip(proxy: str) -> str:

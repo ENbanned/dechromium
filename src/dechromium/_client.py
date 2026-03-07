@@ -451,32 +451,31 @@ def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
     net = profile.network
     updates: dict = {}
 
-    if net.proxy:
-        geo = _lookup_proxy_geo(net.proxy, data_dir)
+    geo = _lookup_proxy_geo(net.proxy, data_dir) if net.proxy else _lookup_public_geo(data_dir)
 
-        if geo:
-            if net.timezone is None:
-                updates["timezone"] = geo.timezone or "America/New_York"
-            elif geo.timezone and net.timezone != geo.timezone:
-                logger.warning(
-                    "Timezone mismatch: profile has %r but proxy IP resolves to %r",
-                    net.timezone,
-                    geo.timezone,
-                )
+    if geo:
+        if net.timezone is None:
+            updates["timezone"] = geo.timezone or "America/New_York"
+        elif geo.timezone and net.timezone != geo.timezone:
+            logger.warning(
+                "Timezone mismatch: profile has %r but IP resolves to %r",
+                net.timezone,
+                geo.timezone,
+            )
 
-            if net.locale is None or net.languages is None:
-                country_map = _load_country_locales()
-                info = country_map.get(geo.country_code)
-                if info:
-                    if net.locale is None:
-                        updates["locale"] = info["locale"]
-                    if net.languages is None:
-                        updates["languages"] = info["languages"]
+        if net.locale is None or net.languages is None:
+            country_map = _load_country_locales()
+            info = country_map.get(geo.country_code)
+            if info:
+                if net.locale is None:
+                    updates["locale"] = info["locale"]
+                if net.languages is None:
+                    updates["languages"] = info["languages"]
 
-            if net.latitude is None and geo.latitude is not None:
-                updates["latitude"] = round(geo.latitude + random.uniform(-0.01, 0.01), 6)
-            if net.longitude is None and geo.longitude is not None:
-                updates["longitude"] = round(geo.longitude + random.uniform(-0.01, 0.01), 6)
+        if net.latitude is None and geo.latitude is not None:
+            updates["latitude"] = round(geo.latitude + random.uniform(-0.01, 0.01), 6)
+        if net.longitude is None and geo.longitude is not None:
+            updates["longitude"] = round(geo.longitude + random.uniform(-0.01, 0.01), 6)
 
     # Fallback defaults for anything still None
     if net.timezone is None and "timezone" not in updates:
@@ -503,3 +502,16 @@ def _lookup_proxy_geo(proxy: str, data_dir: Path):
     except Exception:
         logger.debug("GeoIP lookup failed for proxy %s", proxy, exc_info=True)
         return None
+
+
+def _lookup_public_geo(data_dir: Path):
+    """Look up GeoInfo for the machine's public IP. Returns GeoInfo or None."""
+    from dechromium._geoip import lookup, resolve_public_ip
+
+    try:
+        ip = resolve_public_ip()
+        if ip:
+            return lookup(ip, data_dir)
+    except Exception:
+        logger.debug("GeoIP lookup failed for public IP", exc_info=True)
+    return None
