@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.1
+
+### Fixed
+
+- `destroy` command: use `--python` flag with `uv pip uninstall` to target the correct environment; report success/failure instead of silently swallowing errors
+
 ## 0.11.0
 
 ### Breaking

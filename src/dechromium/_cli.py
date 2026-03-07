@@ -252,14 +252,38 @@ def _destroy(args: list[str]):
 
     # 2. Uninstall pip package (must be last — we're running from it)
     print("  Uninstalling dechromium package...")
-    uninstall_cmds = [
+    uninstalled = False
+
+    # Try pip first
+    r = subprocess.run(
         [sys.executable, "-m", "pip", "uninstall", "dechromium", "-y"],
-        ["uv", "pip", "uninstall", "dechromium"],
-    ]
-    for cmd in uninstall_cmds:
-        subprocess.run(cmd, capture_output=True)
+        capture_output=True,
+        text=True,
+    )
+    if r.returncode == 0 and "Successfully uninstalled" in (r.stdout or ""):
+        print("  Uninstalled via pip")
+        uninstalled = True
+
+    # Try uv (targets the same Python environment)
+    if not uninstalled:
+        r = subprocess.run(
+            ["uv", "pip", "uninstall", "dechromium", "--python", sys.executable],
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode == 0:
+            print("  Uninstalled via uv")
+            uninstalled = True
+
+    if not uninstalled:
+        print("  Warning: could not uninstall package automatically.")
+        print(f"  Run manually: {sys.executable} -m pip uninstall dechromium")
+
     print()
-    print("dechromium has been completely removed.")
+    if uninstalled:
+        print("dechromium has been completely removed.")
+    else:
+        print("Data removed. Package uninstall requires manual step (see above).")
 
 
 def _serve(args: list[str]):
