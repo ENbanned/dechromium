@@ -1,7 +1,7 @@
-From ae5fe6025ff5c2337d4731ff6f3ab0cd59522cfd Mon Sep 17 00:00:00 2001
+From 20293760dc1ff514d44c1f19daf17a3b2e029034 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:01:01 +0000
-Subject: [PATCH 02/14] 002-navigator-spoofing
+Subject: [PATCH 02/15] 002-navigator-spoofing
 
 Navigator fingerprint spoofing:
 - webdriver always returns false
@@ -9,13 +9,52 @@ Navigator fingerprint spoofing:
 - hardwareConcurrency override via --aspect-hardware-concurrency
 - deviceMemory override via --aspect-device-memory (validated against allowed set)
 ---
+ .../approximated_device_memory.cc             | 20 +++++++++++++++++++
  .../core/execution_context/navigator_base.cc  |  6 ++++++
  .../blink/renderer/core/frame/navigator.cc    |  7 +------
  .../frame/navigator_concurrent_hardware.cc    | 12 +++++++++++
  .../core/frame/navigator_device_memory.cc     | 20 +++++++++++++++++++
  .../blink/renderer/core/frame/navigator_id.cc |  6 ++++++
- 5 files changed, 45 insertions(+), 6 deletions(-)
+ 6 files changed, 65 insertions(+), 6 deletions(-)
 
+diff --git a/third_party/blink/common/device_memory/approximated_device_memory.cc b/third_party/blink/common/device_memory/approximated_device_memory.cc
+index fee5a18fd0524..71ecf91f71002 100644
+--- a/third_party/blink/common/device_memory/approximated_device_memory.cc
++++ b/third_party/blink/common/device_memory/approximated_device_memory.cc
+@@ -5,6 +5,8 @@
+ #include "third_party/blink/public/common/device_memory/approximated_device_memory.h"
+ 
+ #include "base/check_op.h"
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/system/sys_info.h"
+ 
+ namespace blink {
+@@ -17,6 +19,24 @@ int64_t ApproximatedDeviceMemory::physical_memory_mb_ = 0;
+ void ApproximatedDeviceMemory::Initialize() {
+   if (approximated_device_memory_gb_ > 0.0)
+     return;
++
++  // Aspect: override with spoofed value from --aspect-device-memory.
++  auto* cmd = base::CommandLine::ForCurrentProcess();
++  if (cmd->HasSwitch("aspect-device-memory")) {
++    double val;
++    if (base::StringToDouble(
++            cmd->GetSwitchValueASCII("aspect-device-memory"), &val)) {
++      constexpr float kAllowed[] = {0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
++      for (float v : kAllowed) {
++        if (v == static_cast<float>(val)) {
++          approximated_device_memory_gb_ = v;
++          physical_memory_mb_ = static_cast<int64_t>(v * 1024);
++          return;
++        }
++      }
++    }
++  }
++
+   DCHECK_EQ(0, physical_memory_mb_);
+   physical_memory_mb_ = ::base::SysInfo::AmountOfPhysicalMemory().InMiB();
+   CalculateAndSetApproximatedDeviceMemory();
 diff --git a/third_party/blink/renderer/core/execution_context/navigator_base.cc b/third_party/blink/renderer/core/execution_context/navigator_base.cc
 index d08b96066d76f..089c02d0339b2 100644
 --- a/third_party/blink/renderer/core/execution_context/navigator_base.cc

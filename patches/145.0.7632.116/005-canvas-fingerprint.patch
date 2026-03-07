@@ -1,19 +1,20 @@
-From 95341445d6cedbef010d2c8ba71f943f9d78e2b3 Mon Sep 17 00:00:00 2001
+From f566e0b347e79701b6f7e32a35fd74596b736bb8 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:03:11 +0000
-Subject: [PATCH 05/14] 005-canvas-fingerprint
+Subject: [PATCH 05/15] 005-canvas-fingerprint
 
 Canvas fingerprint noise via --aspect-canvas-noise-seed:
 - getImageData path: base_rendering_context_2d.cc
 - toDataURL/toBlob path: image_data_buffer.cc
 - Both use edge-pixel-flip algorithm with deterministic seed
 ---
- .../renderer/core/html/canvas/canvas_async_blob_creator.cc   | 1 +
- .../modules/canvas/canvas2d/base_rendering_context_2d.cc     | 3 +++
- .../modules/canvas/canvas2d/canvas_rendering_context_2d.cc   | 4 +++-
- .../offscreen_canvas_rendering_context_2d.cc                 | 5 ++++-
- .../blink/renderer/platform/graphics/image_data_buffer.cc    | 3 +++
- 5 files changed, 14 insertions(+), 2 deletions(-)
+ .../html/canvas/canvas_async_blob_creator.cc  |  1 +
+ .../canvas2d/base_rendering_context_2d.cc     |  3 +
+ .../canvas2d/canvas_rendering_context_2d.cc   |  4 +-
+ .../offscreen_canvas_rendering_context_2d.cc  |  5 +-
+ .../graphics/canvas_resource_provider.cc      | 68 +++++++++++++++++++
+ .../platform/graphics/image_data_buffer.cc    |  3 +
+ 6 files changed, 82 insertions(+), 2 deletions(-)
 
 diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
 index adb616defbf32..3cd013c06cb08 100644
@@ -82,6 +83,95 @@ index a67adb54bce8c..57743068ad59d 100644
  }
  
  const MemoryManagedPaintCanvas*
+diff --git a/third_party/blink/renderer/platform/graphics/canvas_resource_provider.cc b/third_party/blink/renderer/platform/graphics/canvas_resource_provider.cc
+index c1a2cdda7cd24..0892307e37b51 100644
+--- a/third_party/blink/renderer/platform/graphics/canvas_resource_provider.cc
++++ b/third_party/blink/renderer/platform/graphics/canvas_resource_provider.cc
+@@ -65,9 +65,72 @@
+ #include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+ #include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
+ #include "third_party/skia/include/gpu/ganesh/gl/GrGLTypes.h"
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/public/common/switches.h"
++#include "third_party/skia/include/core/SkPixmap.h"
+ 
+ namespace blink {
+ 
++namespace {
++// Aspect: idempotent canvas noise — f(f(x)) = f(x).
++// Quantizes each channel to a grid of 4 then adds a position-dependent offset.
++uint64_t GetAspectCanvasNoiseSeed() {
++  static const uint64_t seed = []() -> uint64_t {
++    uint64_t v = 0;
++    const auto& cmd = *base::CommandLine::ForCurrentProcess();
++    if (cmd.HasSwitch(blink::switches::kAspectCanvasNoiseSeed)) {
++      base::StringToUint64(
++          cmd.GetSwitchValueASCII(blink::switches::kAspectCanvasNoiseSeed), &v);
++    }
++    return v;
++  }();
++  return seed;
++}
++
++void ApplyAspectCanvasNoise(SkSurface* surface, uint64_t seed) {
++  if (!surface || seed == 0)
++    return;
++  SkPixmap pixmap;
++  if (!surface->peekPixels(&pixmap))
++    return;
++  const int width = pixmap.width();
++  const int height = pixmap.height();
++  if (pixmap.colorType() != kRGBA_8888_SkColorType &&
++      pixmap.colorType() != kBGRA_8888_SkColorType &&
++      pixmap.colorType() != kN32_SkColorType) {
++    return;
++  }
++  constexpr uint64_t kFnvPrime = 0x00000100000001b3ULL;
++  for (int y = 0; y < height; ++y) {
++    for (int x = 0; x < width; ++x) {
++      uint32_t* addr = pixmap.writable_addr32(x, y);
++      uint32_t px = *addr;
++      // Skip fully transparent pixels.
++      if ((px >> 24) == 0)
++        continue;
++      uint32_t result = px & 0xFF000000u;  // Preserve alpha.
++      for (int c = 0; c < 3; ++c) {
++        uint64_t h = seed;
++        h ^= static_cast<uint64_t>(x);
++        h *= kFnvPrime;
++        h ^= static_cast<uint64_t>(y);
++        h *= kFnvPrime;
++        h ^= static_cast<uint64_t>(c);
++        h *= kFnvPrime;
++        int offset = static_cast<int>(h % 4);
++        int v = static_cast<int>((px >> (c * 8)) & 0xFF);
++        int quantized = (v / 4) * 4 + offset;
++        result |= static_cast<uint32_t>(std::clamp(quantized, 0, 255))
++                  << (c * 8);
++      }
++      *addr = result;
++    }
++  }
++  surface->notifyContentWillChange(SkSurface::kRetain_ContentChangeMode);
++}
++}  // namespace
++
+ BASE_FEATURE(kSkipRedundantWillDraw, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ class FlushForImageListener {
+@@ -1641,6 +1704,11 @@ std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
+   cc::PaintRecord recording;
+   recording = recorder_->ReleaseMainRecording();
+   RasterRecord(recording);
++  // Aspect: apply idempotent canvas noise after rasterization.
++  uint64_t noise_seed = GetAspectCanvasNoiseSeed();
++  if (noise_seed != 0 && !IsAccelerated()) {
++    ApplyAspectCanvasNoise(GetSkSurface(), noise_seed);
++  }
+   // Images are locked for the duration of the rasterization, in case they get
+   // used multiple times. We can unlock them once the rasterization is complete.
+   ReleaseLockedImages();
 diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 index c76f6553e1cec..8094c95b824fb 100644
 --- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc

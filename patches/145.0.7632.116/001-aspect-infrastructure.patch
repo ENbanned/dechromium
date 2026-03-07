@@ -1,7 +1,7 @@
-From c8d22699a61578921e804cfa158ef28595d2ae24 Mon Sep 17 00:00:00 2001
+From cfdf16b8fda00e073bef9535f73d71d010dd53f1 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:00:13 +0000
-Subject: [PATCH 01/14] 001-aspect-infrastructure
+Subject: [PATCH 01/15] 001-aspect-infrastructure
 
 All shared infrastructure for Aspect browser fingerprinting:
 - 21 blink::switches declarations + definitions
@@ -11,12 +11,12 @@ All shared infrastructure for Aspect browser fingerprinting:
 - Add .siso_failed_targets to .gitignore
 ---
  .gitignore                                    |  1 +
- .../browser/chrome_content_browser_client.cc  |  6 ++++
- chrome/browser/ui/startup/infobar_utils.cc    |  6 ++--
- .../renderer_host/render_process_host_impl.cc | 23 ++++++++++++
- third_party/blink/common/switches.cc          | 27 ++++++++++++++
- third_party/blink/public/common/switches.h    | 35 +++++++++++++++++++
- 6 files changed, 96 insertions(+), 2 deletions(-)
+ .../browser/chrome_content_browser_client.cc  |  6 +++
+ chrome/browser/ui/startup/infobar_utils.cc    |  6 ++-
+ .../renderer_host/render_process_host_impl.cc | 26 ++++++++++++
+ third_party/blink/common/switches.cc          | 30 +++++++++++++
+ third_party/blink/public/common/switches.h    | 42 +++++++++++++++++++
+ 6 files changed, 109 insertions(+), 2 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
 index 4c61af331b827..e8733ff4d609b 100644
@@ -68,10 +68,10 @@ index 04e26dadc8348..4663628d0b2db 100644
    }
  
 diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
-index 2ad7efb8632ca..d02700fd87223 100644
+index 2ad7efb8632ca..d0f389da85166 100644
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
-@@ -3794,6 +3794,29 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+@@ -3794,6 +3794,32 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
        blink::switches::kShowPaintRects,
        blink::switches::kTouchTextSelectionStrategy,
        blink::switches::kJavaScriptFlags,
@@ -98,14 +98,17 @@ index 2ad7efb8632ca..d02700fd87223 100644
 +      blink::switches::kAspectWebglVersion,
 +      blink::switches::kAspectWebglGlslVersion,
 +      blink::switches::kAspectTimezone,
++      blink::switches::kAspectScreenAvailTop,
++      blink::switches::kAspectScrollbarStyle,
++      blink::switches::kAspectWebgpuPreferredFormat,
        // Please keep these in alphabetical order. Compositor switches here
        // should also be added to
        // chrome/browser/ash/login/chrome_restart_request.cc.
 diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
-index da8e6ff391773..fa30c565877da 100644
+index da8e6ff391773..1ed799a9cee22 100644
 --- a/third_party/blink/common/switches.cc
 +++ b/third_party/blink/common/switches.cc
-@@ -160,5 +160,32 @@ const char kWebAudioBypassOutputBufferingOptOut[] =
+@@ -160,5 +160,35 @@ const char kWebAudioBypassOutputBufferingOptOut[] =
  // controlled by base features, but requires an enterprise policy override.
  const char kDisableReduceAcceptLanguage[] = "disable-reduce-accept-language";
  
@@ -135,14 +138,17 @@ index da8e6ff391773..fa30c565877da 100644
 +const char kAspectWebglVersion[] = "aspect-webgl-version";
 +const char kAspectWebglGlslVersion[] = "aspect-webgl-glsl-version";
 +const char kAspectTimezone[] = "aspect-timezone";
++const char kAspectScreenAvailTop[] = "aspect-screen-avail-top";
++const char kAspectScrollbarStyle[] = "aspect-scrollbar-style";
++const char kAspectWebgpuPreferredFormat[] = "aspect-webgpu-preferred-format";
 +
  }  // namespace switches
  }  // namespace blink
 diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
-index 115125f5a170b..4195d809c1b41 100644
+index 115125f5a170b..1b34cabe09064 100644
 --- a/third_party/blink/public/common/switches.h
 +++ b/third_party/blink/public/common/switches.h
-@@ -56,6 +56,41 @@ BLINK_COMMON_EXPORT extern const char kTouchTextSelectionStrategy_Direction[];
+@@ -56,6 +56,48 @@ BLINK_COMMON_EXPORT extern const char kTouchTextSelectionStrategy_Direction[];
  BLINK_COMMON_EXPORT extern const char kDisableStandardizedBrowserZoom[];
  BLINK_COMMON_EXPORT extern const char kWebAudioBypassOutputBufferingOptOut[];
  BLINK_COMMON_EXPORT extern const char kDisableReduceAcceptLanguage[];
@@ -179,8 +185,15 @@ index 115125f5a170b..4195d809c1b41 100644
 +BLINK_COMMON_EXPORT extern const char kAspectWebglGlslVersion[];
 +// Timezone:
 +BLINK_COMMON_EXPORT extern const char kAspectTimezone[];
++// Screen availTop (macOS menu bar offset):
++BLINK_COMMON_EXPORT extern const char kAspectScreenAvailTop[];
++// Scrollbar style (fluent / overlay):
++BLINK_COMMON_EXPORT extern const char kAspectScrollbarStyle[];
++// WebGPU preferred canvas format:
++BLINK_COMMON_EXPORT extern const char kAspectWebgpuPreferredFormat[];
 +// Proxy auth: uses raw strings "aspect-proxy-username" / "aspect-proxy-password"
 +// in net/ layer (which must not depend on blink/).
++// Port blocking: uses raw string "aspect-block-local-ports" in net/ layer.
  }  // namespace switches
  }  // namespace blink
  

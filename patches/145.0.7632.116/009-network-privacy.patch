@@ -1,17 +1,58 @@
-From 01fda4e80b4922712634f07f0dbdd1de8bfa12eb Mon Sep 17 00:00:00 2001
+From e90af909185e929ef51fa41967c9f0086fdaf044 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:19:52 +0000
-Subject: [PATCH 09/14] 009-network-privacy
+Subject: [PATCH 09/15] 009-network-privacy
 
 SOCKS5 proxy authentication and HTTP proxy auto-login:
 - SOCKS5: username/password auth (RFC 1929) via --aspect-proxy-username/password
 - HTTP: auto-respond to proxy auth challenges in url_loader.cc
 ---
+ net/base/port_util.cc              |  22 +++++
  net/socket/socks5_client_socket.cc | 125 ++++++++++++++++++++++++++---
  net/socket/socks5_client_socket.h  |  12 +++
  services/network/url_loader.cc     |  14 +++-
- 3 files changed, 137 insertions(+), 14 deletions(-)
+ 4 files changed, 159 insertions(+), 14 deletions(-)
 
+diff --git a/net/base/port_util.cc b/net/base/port_util.cc
+index 49d0f744cc890..02cce87cab2c0 100644
+--- a/net/base/port_util.cc
++++ b/net/base/port_util.cc
+@@ -7,6 +7,7 @@
+ #include <limits>
+ #include <set>
+ 
++#include "base/command_line.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/containers/flat_set.h"
+ #include "base/feature_list.h"
+@@ -232,6 +233,27 @@ bool IsPortAllowedForIpEndpoint(const IPEndPoint& endpoint) {
+     base::UmaHistogramSparse("Net.RestrictedLocalhostPorts", port);
+     return false;
+   }
++
++  // Aspect: block specified ports on loopback to prevent port scanning.
++  static base::NoDestructor<base::flat_set<int>> aspect_blocked([] {
++    base::flat_set<int>::container_type ports;
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch("aspect-block-local-ports")) {
++      for (const auto& s : base::SplitStringPiece(
++               cmd->GetSwitchValueASCII("aspect-block-local-ports"), ",",
++               base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++        int p;
++        if (base::StringToInt(s, &p) && p > 0 && p <= 65535) {
++          ports.push_back(p);
++        }
++      }
++    }
++    return base::flat_set<int>(std::move(ports));
++  }());
++  if (aspect_blocked->contains(port)) {
++    return false;
++  }
++
+   return true;
+ }
+ 
 diff --git a/net/socket/socks5_client_socket.cc b/net/socket/socks5_client_socket.cc
 index 3eeeb7e204c3d..615bac8b4f8e4 100644
 --- a/net/socket/socks5_client_socket.cc

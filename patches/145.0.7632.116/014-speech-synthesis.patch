@@ -1,7 +1,7 @@
-From bd9943c853fd7ab2ba9a984a4ceb40207b83908f Mon Sep 17 00:00:00 2001
+From b2665d71a5d9c1728a9978984fbab29e1a288d8e Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Sat, 7 Mar 2026 13:49:06 +0000
-Subject: [PATCH 14/14] 014-speech-synthesis
+Subject: [PATCH 14/15] 014-speech-synthesis
 
 ---
  .../blink/renderer/modules/speech/speech_synthesis.cc       | 6 ++----

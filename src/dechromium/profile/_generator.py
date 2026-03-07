@@ -158,10 +158,13 @@ class DiversityEngine:
 
         if platform == "Win32":
             taskbar_h = self._rng.choice([40, 48])
+            avail_top = 0
         elif platform == "MacIntel":
             taskbar_h = 25
+            avail_top = 25
         else:
             taskbar_h = self._rng.choice([27, 36, 48])
+            avail_top = 0
         avail_height = screen[1] - taskbar_h
 
         return {
@@ -173,6 +176,7 @@ class DiversityEngine:
                 "screen_height": screen[1],
                 "avail_width": screen[0],
                 "avail_height": avail_height,
+                "avail_top": avail_top,
                 "pixel_ratio": dpr,
                 "color_depth": 24,
             },

@@ -1,7 +1,7 @@
-From dd968e5df72db21a3c77989e394549ee606e322c Mon Sep 17 00:00:00 2001
+From 48b1e12136e9e6e0bd56b07d36b35185c9c50391 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Sun, 1 Mar 2026 13:52:58 +0000
-Subject: [PATCH 11/14] 011-geolocation-spoofing
+Subject: [PATCH 11/15] 011-geolocation-spoofing
 
 ---
  .../renderer_host/render_process_host_impl.cc |  2 ++
@@ -11,7 +11,7 @@ Subject: [PATCH 11/14] 011-geolocation-spoofing
  4 files changed, 34 insertions(+), 2 deletions(-)
 
 diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
-index d02700fd87223..88b82439a0595 100644
+index d0f389da85166..02fa6666c2c64 100644
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
 @@ -3816,6 +3816,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
@@ -21,10 +21,10 @@ index d02700fd87223..88b82439a0595 100644
 +      blink::switches::kAspectGeoLatitude,
 +      blink::switches::kAspectGeoLongitude,
        blink::switches::kAspectTimezone,
-       // Please keep these in alphabetical order. Compositor switches here
-       // should also be added to
+       blink::switches::kAspectScreenAvailTop,
+       blink::switches::kAspectScrollbarStyle,
 diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
-index fa30c565877da..89bf1ab0a047a 100644
+index 1ed799a9cee22..60a134f390ef6 100644
 --- a/third_party/blink/common/switches.cc
 +++ b/third_party/blink/common/switches.cc
 @@ -185,6 +185,8 @@ const char kAspectDomrectNoiseSeed[] = "aspect-domrect-noise-seed";
@@ -34,10 +34,10 @@ index fa30c565877da..89bf1ab0a047a 100644
 +const char kAspectGeoLatitude[] = "aspect-geo-latitude";
 +const char kAspectGeoLongitude[] = "aspect-geo-longitude";
  const char kAspectTimezone[] = "aspect-timezone";
- 
- }  // namespace switches
+ const char kAspectScreenAvailTop[] = "aspect-screen-avail-top";
+ const char kAspectScrollbarStyle[] = "aspect-scrollbar-style";
 diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
-index 4195d809c1b41..ebdc035d330e9 100644
+index 1b34cabe09064..ae6e549fe21f1 100644
 --- a/third_party/blink/public/common/switches.h
 +++ b/third_party/blink/public/common/switches.h
 @@ -87,6 +87,9 @@ BLINK_COMMON_EXPORT extern const char kAspectFontFamilies[];
@@ -49,7 +49,7 @@ index 4195d809c1b41..ebdc035d330e9 100644
 +BLINK_COMMON_EXPORT extern const char kAspectGeoLongitude[];
  // Timezone:
  BLINK_COMMON_EXPORT extern const char kAspectTimezone[];
- // Proxy auth: uses raw strings "aspect-proxy-username" / "aspect-proxy-password"
+ // Screen availTop (macOS menu bar offset):
 diff --git a/third_party/blink/renderer/core/geolocation/geolocation.cc b/third_party/blink/renderer/core/geolocation/geolocation.cc
 index 640ee17dcfecd..4e968c79c3f18 100644
 --- a/third_party/blink/renderer/core/geolocation/geolocation.cc

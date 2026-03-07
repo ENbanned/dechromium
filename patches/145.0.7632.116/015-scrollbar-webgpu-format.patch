@@ -1,0 +1,72 @@
+From 7e93c250501af8b58668c58463bfe207bd3fcef4 Mon Sep 17 00:00:00 2001
+From: ENbanned <nik.skvortsov2007@gmail.com>
+Date: Sat, 7 Mar 2026 19:02:46 +0000
+Subject: [PATCH 15/15] 015-scrollbar-webgpu-format
+
+---
+ content/child/runtime_features.cc                | 14 ++++++++++++++
+ third_party/blink/renderer/modules/webgpu/gpu.cc | 14 ++++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/content/child/runtime_features.cc b/content/child/runtime_features.cc
+index 7a04e2748b543..961093ab23c52 100644
+--- a/content/child/runtime_features.cc
++++ b/content/child/runtime_features.cc
+@@ -534,6 +534,20 @@ void SetCustomizedRuntimeFeaturesFromCombinedArgs(
+   WebRuntimeFeatures::EnableFluentOverlayScrollbars(
+       ui::IsFluentOverlayScrollbarEnabled());
+ 
++  // Aspect: override scrollbar style per profile platform.
++  if (command_line.HasSwitch("aspect-scrollbar-style")) {
++    std::string style =
++        command_line.GetSwitchValueASCII("aspect-scrollbar-style");
++    if (style == "overlay") {
++      WebRuntimeFeatures::EnableOverlayScrollbars(true);
++      WebRuntimeFeatures::EnableFluentScrollbars(false);
++      WebRuntimeFeatures::EnableFluentOverlayScrollbars(false);
++    } else if (style == "fluent") {
++      WebRuntimeFeatures::EnableOverlayScrollbars(false);
++      WebRuntimeFeatures::EnableFluentScrollbars(true);
++    }
++  }
++
+   // TODO(rodneyding): This is a rare case for a stable feature
+   // Need to investigate more to determine whether to refactor it.
+   if (command_line.HasSwitch(switches::kDisableV8IdleTasks)) {
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu.cc b/third_party/blink/renderer/modules/webgpu/gpu.cc
+index 4aae58a3c6b5a..053b46c77aba9 100644
+--- a/third_party/blink/renderer/modules/webgpu/gpu.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu.cc
+@@ -6,7 +6,9 @@
+ 
+ #include <utility>
+ 
++#include "base/command_line.h"
+ #include "base/feature_list.h"
++#include "third_party/blink/public/common/switches.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/notreached.h"
+ #include "base/synchronization/waitable_event.h"
+@@ -427,9 +429,17 @@ V8GPUTextureFormat GPU::getPreferredCanvasFormat() {
+ }
+ 
+ wgpu::TextureFormat GPU::GetPreferredCanvasFormat() {
++  // Aspect: override based on spoofed platform.
++  const auto& cmd = *base::CommandLine::ForCurrentProcess();
++  if (cmd.HasSwitch(blink::switches::kAspectWebgpuPreferredFormat)) {
++    std::string fmt = cmd.GetSwitchValueASCII(
++        blink::switches::kAspectWebgpuPreferredFormat);
++    if (fmt == "bgra8unorm")
++      return wgpu::TextureFormat::BGRA8Unorm;
++    if (fmt == "rgba8unorm")
++      return wgpu::TextureFormat::RGBA8Unorm;
++  }
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+-  // Interop of vulkan and GL has mesa driver bugs for BGRA format
+-  // See anglebug.com/40644739
+   return wgpu::TextureFormat::RGBA8Unorm;
+ #else
+   return wgpu::TextureFormat::BGRA8Unorm;
+-- 
+2.39.5
+

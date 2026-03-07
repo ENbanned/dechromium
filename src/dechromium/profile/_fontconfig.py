@@ -52,6 +52,37 @@ _ALIAS_BLOCKS: dict[str, tuple[str, ...]] = {
     "linux": (),
 }
 
+# Map macOS proprietary font names → free substitutes bundled in fonts/macos/
+_MACOS_FONT_ALIASES: dict[str, str] = {
+    "Helvetica": "TeX Gyre Heros",
+    "Helvetica Neue": "TeX Gyre Heros",
+    "Avenir": "Nunito Sans",
+    "Avenir Next": "Nunito Sans",
+    "Futura": "Jost",
+    "Baskerville": "Libre Baskerville",
+    "Gill Sans": "Lato",
+    "Palatino": "TeX Gyre Pagella",
+    "Geneva": "Nimbus Sans",
+    "Lucida Grande": "Inter",
+    "SF Pro": "Inter",
+    "SF Mono": "DejaVu Sans Mono",
+    "Menlo": "DejaVu Sans Mono",
+    "Monaco": "Fira Mono",
+    "Optima": "Lato",
+    "Symbol": "DejaVu Sans",
+}
+
+_WINDOWS_FONT_ALIASES: dict[str, str] = {
+    "Calibri": "Carlito",
+    "Segoe UI": "Inter",
+    "Tahoma": "DejaVu Sans",
+    "Consolas": "Inconsolata",
+    "Cambria": "Caladea",
+    "Lucida Console": "DejaVu Sans Mono",
+    "Microsoft Sans Serif": "Liberation Sans",
+    "Palatino Linotype": "TeX Gyre Pagella",
+}
+
 _FONTCONFIG_HEADER = """\
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
@@ -89,6 +120,15 @@ _FONTCONFIG_BLOCK = """\
     <edit name="family" mode="assign" binding="same"><string>__BLOCKED__</string></edit>
   </match>"""
 
+_FONTCONFIG_ALIAS = """\
+
+  <match target="pattern">
+    <test name="family"><string>{family}</string></test>
+    <edit name="family" mode="prepend_first" binding="strong">
+      <string>{substitute}</string>
+    </edit>
+  </match>"""
+
 _FONTCONFIG_FOOTER = "\n</fontconfig>\n"
 
 
@@ -104,10 +144,10 @@ def setup_profile_fonts(profile: Profile, config: Config) -> None:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     if src_dir.exists():
-        for ttf in src_dir.glob("*.ttf"):
-            dst = font_dir / ttf.name
+        for font_file in (*src_dir.glob("*.ttf"), *src_dir.glob("*.otf")):
+            dst = font_dir / font_file.name
             if not dst.exists():
-                shutil.copy2(ttf, dst)
+                shutil.copy2(font_file, dst)
 
     if sys.platform != "win32":
         xml = generate_fontconfig_xml(pack, font_dir, cache_dir)
@@ -128,6 +168,20 @@ def generate_fontconfig_xml(font_pack: str, font_dir: Path, cache_dir: Path) -> 
     )
     for family in blocks:
         conf += _FONTCONFIG_BLOCK.format(family=family)
+
+    if font_pack == "macos":
+        aliases = _MACOS_FONT_ALIASES
+    elif font_pack == "windows":
+        aliases = _WINDOWS_FONT_ALIASES
+    else:
+        aliases = {}
+    for family, substitute in aliases.items():
+        conf += _FONTCONFIG_ALIAS.format(family=family, substitute=substitute)
+
+    # system-ui alias → platform-appropriate font
+    system_ui_font = generics["sans_serif"]
+    conf += _FONTCONFIG_ALIAS.format(family="system-ui", substitute=system_ui_font)
+
     conf += _FONTCONFIG_FOOTER
 
     return conf

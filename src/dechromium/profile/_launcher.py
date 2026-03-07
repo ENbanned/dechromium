@@ -42,11 +42,16 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
         proxy_host = urlparse(net.proxy).hostname or ""
         resolver_rules = f"MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE {proxy_host}"
         args.append(f"--host-resolver-rules={resolver_rules}")
-        args.append(f"--force-webrtc-ip-handling-policy={net.webrtc_policy.value}")
         if net.proxy_username:
             args.append(f"--aspect-proxy-username={net.proxy_username}")
         if net.proxy_password:
             args.append(f"--aspect-proxy-password={net.proxy_password}")
+
+    # Always set WebRTC policy (default: disable_non_proxied_udp = no ICE candidates)
+    args.append(f"--webrtc-ip-handling-policy={net.webrtc_policy.value}")
+
+    # Block port scanning on localhost (BrowserScan probes 3389, 5900, etc.)
+    args.append("--aspect-block-local-ports=3389,5900,5800,8080,8443,9100")
 
     canvas_seed = int(profile.noise.canvas_seed, 16)
     audio_seed = int(profile.noise.audio_seed, 16)
@@ -71,8 +76,21 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
             f"--aspect-domrect-noise-seed={domrect_seed}",
             f"--aspect-webgl-vendor={wgl.vendor}",
             f"--aspect-webgl-renderer={wgl.renderer}",
+            f"--aspect-screen-avail-top={hw.avail_top}",
         ]
     )
+
+    # Scrollbar style: overlay for macOS (0px), fluent for Windows/Linux (15px)
+    scrollbar_style = "overlay" if ident.platform == "MacIntel" else "fluent"
+    args.append(f"--aspect-scrollbar-style={scrollbar_style}")
+
+    # system-ui CSS generic → platform-appropriate font
+    _system_ui = {"Win32": "Segoe UI", "MacIntel": "SF Pro", "Linux x86_64": "DejaVu Sans"}
+    args.append(f"--system-font-family={_system_ui.get(ident.platform, 'Arial')}")
+
+    # WebGPU preferred canvas format (platform-dependent)
+    preferred_fmt = "bgra8unorm" if ident.platform != "Linux x86_64" else "rgba8unorm"
+    args.append(f"--aspect-webgpu-preferred-format={preferred_fmt}")
 
     # Timezone spoofing (ICU override on Windows, env var on Linux)
     if net.timezone:

@@ -1,17 +1,17 @@
-From de5f436540917cef469edfc64a2a796592140ba2 Mon Sep 17 00:00:00 2001
+From 2ad481b42cb494b6a9b5eebe36b44a624485728c Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:01:28 +0000
-Subject: [PATCH 03/14] 003-screen-display
+Subject: [PATCH 03/15] 003-screen-display
 
 Screen/display property spoofing via widget_base.cc:
 - Override screen width, height, availWidth, availHeight
 - Override colorDepth and devicePixelRatio
 ---
- .../renderer/platform/widget/widget_base.cc   | 50 +++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ .../renderer/platform/widget/widget_base.cc   | 55 +++++++++++++++++++
+ 1 file changed, 55 insertions(+)
 
 diff --git a/third_party/blink/renderer/platform/widget/widget_base.cc b/third_party/blink/renderer/platform/widget/widget_base.cc
-index 05b89451b9609..670d898850ac1 100644
+index 05b89451b9609..3783de48053a8 100644
 --- a/third_party/blink/renderer/platform/widget/widget_base.cc
 +++ b/third_party/blink/renderer/platform/widget/widget_base.cc
 @@ -7,6 +7,8 @@
@@ -38,7 +38,7 @@ index 05b89451b9609..670d898850ac1 100644
    return client_->GetOriginalScreenInfos().current().device_scale_factor;
  }
  
-@@ -1712,6 +1721,47 @@ void WidgetBase::UpdateSurfaceAndScreenInfo(
+@@ -1712,6 +1721,52 @@ void WidgetBase::UpdateSurfaceAndScreenInfo(
  
    local_surface_id_from_parent_ = new_local_surface_id;
    screen_infos_ = new_screen_infos;
@@ -70,6 +70,11 @@ index 05b89451b9609..670d898850ac1 100644
 +            cmd->GetSwitchValueASCII(blink::switches::kAspectScreenAvailHeight),
 +            &ival) && ival > 0)
 +      si.available_rect.set_height(ival);
++    if (cmd->HasSwitch(blink::switches::kAspectScreenAvailTop) &&
++        base::StringToInt(
++            cmd->GetSwitchValueASCII(blink::switches::kAspectScreenAvailTop),
++            &ival) && ival >= 0)
++      si.available_rect.set_y(ival);
 +    if (cmd->HasSwitch(blink::switches::kAspectColorDepth) &&
 +        base::StringToInt(
 +            cmd->GetSwitchValueASCII(blink::switches::kAspectColorDepth),

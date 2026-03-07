@@ -442,20 +442,19 @@ def _load_country_locales() -> dict:
 
 
 def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
-    """Resolve None network fields from proxy GeoIP at launch time.
+    """Resolve None network fields from GeoIP at launch time.
 
-    Returns a profile copy with all network fields filled in.
-    None = auto-detect from proxy IP (or use defaults if no proxy).
-    Explicit values are never overridden.
+    With proxy  → resolve geo from proxy exit IP (timezone, locale, coordinates).
+    Without proxy → resolve geo from public IP (timezone only).
+    Explicit values in the profile are never overridden.
     """
     net = profile.network
     updates: dict = {}
 
-    geo = _lookup_proxy_geo(net.proxy, data_dir) if net.proxy else _lookup_public_geo(data_dir)
-
+    geo = _lookup_exit_geo(net.proxy, data_dir)
     if geo:
         if net.timezone is None:
-            updates["timezone"] = geo.timezone or "America/New_York"
+            updates["timezone"] = geo.timezone
         elif geo.timezone and net.timezone != geo.timezone:
             logger.warning(
                 "Timezone mismatch: profile has %r but IP resolves to %r",
@@ -463,23 +462,25 @@ def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
                 geo.timezone,
             )
 
-        if net.locale is None or net.languages is None:
-            country_map = _load_country_locales()
-            info = country_map.get(geo.country_code)
-            if info:
-                if net.locale is None:
-                    updates["locale"] = info["locale"]
-                if net.languages is None:
-                    updates["languages"] = info["languages"]
+        # Locale, languages, coordinates — only when there's a proxy.
+        if net.proxy:
+            if net.locale is None or net.languages is None:
+                country_map = _load_country_locales()
+                info = country_map.get(geo.country_code)
+                if info:
+                    if net.locale is None:
+                        updates["locale"] = info["locale"]
+                    if net.languages is None:
+                        updates["languages"] = info["languages"]
 
-        if net.latitude is None and geo.latitude is not None:
-            updates["latitude"] = round(geo.latitude + random.uniform(-0.01, 0.01), 6)
-        if net.longitude is None and geo.longitude is not None:
-            updates["longitude"] = round(geo.longitude + random.uniform(-0.01, 0.01), 6)
+            if net.latitude is None and geo.latitude is not None:
+                updates["latitude"] = round(geo.latitude + random.uniform(-0.01, 0.01), 6)
+            if net.longitude is None and geo.longitude is not None:
+                updates["longitude"] = round(geo.longitude + random.uniform(-0.01, 0.01), 6)
 
     # Fallback defaults for anything still None
     if net.timezone is None and "timezone" not in updates:
-        updates["timezone"] = "America/New_York"
+        updates["timezone"] = "UTC"
     if net.locale is None and "locale" not in updates:
         updates["locale"] = "en-US"
     if net.languages is None and "languages" not in updates:
@@ -492,26 +493,18 @@ def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
     return profile.model_copy(update={"network": resolved_net})
 
 
-def _lookup_proxy_geo(proxy: str, data_dir: Path):
-    """Resolve proxy IP and look up GeoInfo. Returns GeoInfo or None."""
-    from dechromium._geoip import lookup, resolve_proxy_ip
+def _lookup_exit_geo(proxy: str | None, data_dir: Path):
+    """Look up GeoInfo for the exit IP — proxy if set, else public IP."""
+    from dechromium._geoip import lookup, resolve_proxy_ip, resolve_public_ip
 
     try:
-        ip = resolve_proxy_ip(proxy)
+        if proxy:
+            ip = resolve_proxy_ip(proxy)
+        else:
+            ip = resolve_public_ip()
+            if not ip:
+                return None
         return lookup(ip, data_dir)
     except Exception:
-        logger.debug("GeoIP lookup failed for proxy %s", proxy, exc_info=True)
+        logger.debug("GeoIP lookup failed", exc_info=True)
         return None
-
-
-def _lookup_public_geo(data_dir: Path):
-    """Look up GeoInfo for the machine's public IP. Returns GeoInfo or None."""
-    from dechromium._geoip import lookup, resolve_public_ip
-
-    try:
-        ip = resolve_public_ip()
-        if ip:
-            return lookup(ip, data_dir)
-    except Exception:
-        logger.debug("GeoIP lookup failed for public IP", exc_info=True)
-    return None

@@ -1,17 +1,17 @@
-From ac859d292c94423b57896ce4a8f96956a99742fb Mon Sep 17 00:00:00 2001
+From e40226c169d149db7c9f43ae41c6c925ada63378 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:01:53 +0000
-Subject: [PATCH 04/14] 004-client-hints
+Subject: [PATCH 04/15] 004-client-hints
 
 Client Hints (Sec-CH-UA) spoofing via user_agent_utils.cc:
 - Override platform, platformVersion, architecture in UA metadata
 - Bypass early-return guards when aspect switches are present
 ---
- .../embedder_support/user_agent_utils.cc      | 23 +++++++++++++++++--
- 1 file changed, 21 insertions(+), 2 deletions(-)
+ .../embedder_support/user_agent_utils.cc      | 29 +++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
 
 diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
-index e77a993b3c467..e2aeeb90bc53a 100644
+index e77a993b3c467..8c5fe2f78bb42 100644
 --- a/components/embedder_support/user_agent_utils.cc
 +++ b/components/embedder_support/user_agent_utils.cc
 @@ -3,6 +3,7 @@
@@ -22,7 +22,20 @@ index e77a993b3c467..e2aeeb90bc53a 100644
  
  #include <stdint.h>
  
-@@ -657,6 +658,12 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+@@ -189,6 +190,12 @@ const blink::UserAgentBrandList GetUserAgentBrandList(
+ #if !BUILDFLAG(CHROMIUM_BRANDING)
+   brand = version_info::GetProductName();
+ #endif
++  // Aspect: inject "Google Chrome" brand when running as anti-detect profile.
++  {
++    auto* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch(blink::switches::kAspectUaPlatform))
++      brand = "Google Chrome";
++  }
+ 
+   std::string brand_version =
+       output_version_type == blink::UserAgentBrandVersionType::kFullVersion
+@@ -657,6 +664,12 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
        GetUserAgentBrandMajorVersionListInternal(std::nullopt);
    metadata.mobile = GetMobileBitForUAMetadata();
    metadata.platform = GetPlatformForUAMetadata();
@@ -35,7 +48,7 @@ index e77a993b3c467..e2aeeb90bc53a 100644
  
    // For users providing a valid user-agent override via the command line:
    // If kUACHOverrideBlank is enabled, set user-agent metadata with the
-@@ -665,13 +672,16 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+@@ -665,13 +678,16 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
    // Notes: Sending low entropy hints with empty values may cause requests being
    // blocked by web application firewall software, etc.
    std::optional<std::string> custom_ua = GetUserAgentFromCommandLine();
@@ -54,7 +67,7 @@ index e77a993b3c467..e2aeeb90bc53a 100644
      return metadata;
    }
  
-@@ -685,6 +695,15 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+@@ -685,6 +701,15 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
    metadata.bitness = GetCpuBitness();
    metadata.wow64 = IsWoW64();
    metadata.platform_version = GetPlatformVersion();

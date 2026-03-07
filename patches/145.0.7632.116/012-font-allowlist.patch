@@ -1,7 +1,7 @@
-From 26ce8897074bbbf522edbeac055339d622d23a65 Mon Sep 17 00:00:00 2001
+From 9e2fcb3057cac766b56b69223a68fedbfa38417f Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Sun, 1 Mar 2026 22:54:58 +0000
-Subject: [PATCH 12/14] 012-font-allowlist
+Subject: [PATCH 12/15] 012-font-allowlist
 
 Blink-level font family allowlist via --aspect-font-families flag.
 

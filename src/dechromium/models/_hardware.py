@@ -14,6 +14,7 @@ class Hardware(BaseModel):
     avail_height: int | None = None
     color_depth: ColorDepth = ColorDepth.BIT_24
     pixel_ratio: float = Field(1.0, ge=1.0, le=3.0)
+    avail_top: int = Field(0, ge=0, le=100)
 
     def model_post_init(self, __context):
         if self.avail_width is None:

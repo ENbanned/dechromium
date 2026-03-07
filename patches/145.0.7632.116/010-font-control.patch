@@ -1,29 +1,34 @@
-From e7f6c93450246646ef5b5e2cfccc03e73e44a377 Mon Sep 17 00:00:00 2001
+From 1cb6ed75b75e19bf3f0378171e5c2f9048e619a9 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:19:57 +0000
-Subject: [PATCH 10/14] 010-font-control
+Subject: [PATCH 10/15] 010-font-control
 
 Strict font family matching in font_cache_skia.cc:
 - Return nullptr when requested font name doesn't match actual family name
 - Prevents font fallback fingerprinting
 - Generic families (serif, sans-serif, monospace, etc.) are exempted
 ---
- .../platform/fonts/skia/font_cache_skia.cc    | 25 ++++++++++++++++++-
- 1 file changed, 24 insertions(+), 1 deletion(-)
+ .../platform/fonts/skia/font_cache_skia.cc    | 49 ++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)
 
 diff --git a/third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc b/third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc
-index e8f0e57b0391b..50dcec7c4e0da 100644
+index e8f0e57b0391b..c6fadc16b41c7 100644
 --- a/third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc
 +++ b/third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc
-@@ -36,6 +36,7 @@
+@@ -36,6 +36,12 @@
  #include "base/check_op.h"
  #include "base/metrics/histogram_functions.h"
  #include "base/notreached.h"
++#include "base/command_line.h"
++#include "base/containers/flat_set.h"
++#include "base/no_destructor.h"
++#include "base/strings/string_split.h"
 +#include "base/strings/string_util.h"
++#include "third_party/blink/public/common/switches.h"
  #include "base/strings/string_view_util.h"
  #include "build/build_config.h"
  #include "skia/ext/font_utils.h"
-@@ -292,8 +293,30 @@ sk_sp<SkTypeface> FontCache::CreateTypeface(
+@@ -292,8 +298,49 @@ sk_sp<SkTypeface> FontCache::CreateTypeface(
        return typeface;
    }
  #endif  // BUILDFLAG(IS_ANDROID)
@@ -47,7 +52,26 @@ index e8f0e57b0391b..50dcec7c4e0da 100644
 +      SkString actual_family;
 +      typeface->getFamilyName(&actual_family);
 +      if (!base::EqualsCaseInsensitiveASCII(name, actual_family.c_str())) {
-+        return nullptr;
++        // Allow fontconfig alias resolution for allowlisted fonts.
++        // Patch 012 already restricts visibility to allowlisted families.
++        static base::NoDestructor<base::flat_set<std::string>> allowed([] {
++          base::flat_set<std::string>::container_type fams;
++          auto* cmd = base::CommandLine::ForCurrentProcess();
++          if (cmd->HasSwitch(blink::switches::kAspectFontFamilies)) {
++            for (const auto& f : base::SplitStringPiece(
++                     cmd->GetSwitchValueASCII(
++                         blink::switches::kAspectFontFamilies),
++                     ",", base::TRIM_WHITESPACE,
++                     base::SPLIT_WANT_NONEMPTY)) {
++              fams.push_back(base::ToLowerASCII(f));
++            }
++          }
++          return base::flat_set<std::string>(std::move(fams));
++        }());
++        if (allowed->empty() ||
++            !allowed->contains(base::ToLowerASCII(name))) {
++          return nullptr;
++        }
 +      }
 +    }
 +  }

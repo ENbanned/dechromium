@@ -26,7 +26,7 @@ def ensure_fonts(fonts_dir: Path, version: str) -> None:
         dest = fonts_dir / pack_dir.name
         dest.mkdir(parents=True, exist_ok=True)
 
-        bundled = {f.name for f in pack_dir.iterdir() if f.suffix == ".ttf"}
+        bundled = {f.name for f in pack_dir.iterdir() if f.suffix in (".ttf", ".otf")}
 
         # Copy new / updated fonts.
         for name in bundled:
@@ -34,7 +34,7 @@ def ensure_fonts(fonts_dir: Path, version: str) -> None:
 
         # Remove stale fonts no longer in bundle.
         for existing in dest.iterdir():
-            if existing.suffix == ".ttf" and existing.name not in bundled:
+            if existing.suffix in (".ttf", ".otf") and existing.name not in bundled:
                 existing.unlink()
 
     marker.parent.mkdir(parents=True, exist_ok=True)
