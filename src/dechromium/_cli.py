@@ -254,34 +254,54 @@ def _destroy(args: list[str]):
     print("  Uninstalling dechromium package...")
     uninstalled = False
 
-    # Try pip first
-    try:
-        r = subprocess.run(
-            [sys.executable, "-m", "pip", "uninstall", "dechromium", "-y"],
-            capture_output=True,
-            text=True,
+    if sys.platform == "win32":
+        # Windows locks the running dechromium.exe — spawn a background process
+        # that waits for this process to exit, then uninstalls the package.
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import time,subprocess,sys;"
+                "time.sleep(2);"
+                "subprocess.run([sys.executable,'-m','pip','uninstall','dechromium','-y'],"
+                "capture_output=True);"
+                "subprocess.run(['uv','pip','uninstall','dechromium'],"
+                "capture_output=True)",
+            ],
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+            close_fds=True,
         )
-        if r.returncode == 0 and "Successfully uninstalled" in (r.stdout or ""):
-            print("  Uninstalled via pip")
-            uninstalled = True
-    except FileNotFoundError:
-        pass
-
-    # Try uv
-    if not uninstalled:
+        print("  Package will be uninstalled momentarily.")
+        uninstalled = True
+    else:
+        # Try pip first
         try:
             r = subprocess.run(
-                ["uv", "pip", "uninstall", "dechromium"],
+                [sys.executable, "-m", "pip", "uninstall", "dechromium", "-y"],
                 capture_output=True,
                 text=True,
             )
-            if r.returncode == 0:
-                print("  Uninstalled via uv")
+            if r.returncode == 0 and "Successfully uninstalled" in (r.stdout or ""):
+                print("  Uninstalled via pip")
                 uninstalled = True
-            else:
-                print(f"  uv failed: {(r.stderr or r.stdout or '').strip()}")
         except FileNotFoundError:
             pass
+
+        # Try uv
+        if not uninstalled:
+            try:
+                r = subprocess.run(
+                    ["uv", "pip", "uninstall", "dechromium"],
+                    capture_output=True,
+                    text=True,
+                )
+                if r.returncode == 0:
+                    print("  Uninstalled via uv")
+                    uninstalled = True
+                else:
+                    print(f"  uv failed: {(r.stderr or r.stdout or '').strip()}")
+            except FileNotFoundError:
+                pass
 
     if not uninstalled:
         print("  Warning: could not uninstall package automatically.")

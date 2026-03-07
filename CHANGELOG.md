@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.3
+
+### Fixed
+
+- `destroy` command: on Windows, spawn background process to uninstall after `dechromium.exe` exits (Windows locks running executables); on Unix, try pip then uv directly
+
 ## 0.11.2
 
 ### Fixed
