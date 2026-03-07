@@ -126,19 +126,19 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
     if wgl.extensions:
         args.append(f"--aspect-webgl-extensions={','.join(wgl.extensions)}")
 
-    if wgl.shader_precision_high:
+    if wgl.shader_precision_float:
         args.append(
-            f"--aspect-webgl-precision-high="
-            f"{wgl.shader_precision_high[0]},"
-            f"{wgl.shader_precision_high[1]},"
-            f"{wgl.shader_precision_high[2]}"
+            f"--aspect-webgl-precision-float="
+            f"{wgl.shader_precision_float[0]},"
+            f"{wgl.shader_precision_float[1]},"
+            f"{wgl.shader_precision_float[2]}"
         )
-    if wgl.shader_precision_medium:
+    if wgl.shader_precision_int:
         args.append(
-            f"--aspect-webgl-precision-medium="
-            f"{wgl.shader_precision_medium[0]},"
-            f"{wgl.shader_precision_medium[1]},"
-            f"{wgl.shader_precision_medium[2]}"
+            f"--aspect-webgl-precision-int="
+            f"{wgl.shader_precision_int[0]},"
+            f"{wgl.shader_precision_int[1]},"
+            f"{wgl.shader_precision_int[2]}"
         )
 
     if net.latitude is not None and net.longitude is not None:

@@ -1,5 +1,6 @@
 {
   "backends": {
+    "_comment_precision": "float=[127,127,23] = IEEE 32-bit; int=[31,30,0] = 32-bit two's complement. From ANGLE source: renderer11_utils.cpp",
     "d3d11": {
       "params": {
         "0D33": 16384,
@@ -56,43 +57,51 @@
         "9111": 0
       },
       "extensions": [
+        "ANGLE_instanced_arrays",
+        "EXT_blend_minmax",
         "EXT_clip_control",
         "EXT_color_buffer_float",
         "EXT_color_buffer_half_float",
         "EXT_conservative_depth",
         "EXT_depth_clamp",
         "EXT_float_blend",
+        "EXT_frag_depth",
         "EXT_polygon_offset_clamp",
+        "EXT_sRGB",
+        "EXT_shader_texture_lod",
         "EXT_texture_compression_bptc",
         "EXT_texture_compression_rgtc",
         "EXT_texture_filter_anisotropic",
         "EXT_texture_mirror_clamp_to_edge",
         "NV_shader_noperspective_interpolation",
         "OES_draw_buffers_indexed",
+        "OES_element_index_uint",
+        "OES_fbo_render_mipmap",
         "OES_sample_variables",
         "OES_shader_multisample_interpolation",
+        "OES_standard_derivatives",
+        "OES_texture_float",
         "OES_texture_float_linear",
+        "OES_texture_half_float",
+        "OES_texture_half_float_linear",
+        "OES_vertex_array_object",
         "OVR_multiview2",
         "WEBGL_clip_cull_distance",
+        "WEBGL_color_buffer_float",
         "WEBGL_compressed_texture_s3tc",
         "WEBGL_compressed_texture_s3tc_srgb",
         "WEBGL_debug_renderer_info",
+        "WEBGL_debug_shaders",
+        "WEBGL_depth_texture",
+        "WEBGL_draw_buffers",
         "WEBGL_lose_context",
         "WEBGL_multi_draw",
         "WEBGL_polygon_mode",
         "WEBGL_stencil_texturing"
       ],
       "shader_precision": {
-        "high_float": [
-          127,
-          127,
-          23
-        ],
-        "medium_float": [
-          127,
-          127,
-          23
-        ]
+        "float": [127, 127, 23],
+        "int": [31, 30, 0]
       }
     },
     "metal": {
@@ -151,49 +160,57 @@
         "9111": 0
       },
       "extensions": [
+        "ANGLE_instanced_arrays",
+        "EXT_blend_minmax",
         "EXT_clip_control",
         "EXT_color_buffer_float",
         "EXT_color_buffer_half_float",
         "EXT_conservative_depth",
         "EXT_depth_clamp",
         "EXT_float_blend",
+        "EXT_frag_depth",
         "EXT_polygon_offset_clamp",
+        "EXT_sRGB",
+        "EXT_shader_texture_lod",
         "EXT_texture_compression_bptc",
         "EXT_texture_compression_rgtc",
         "EXT_texture_filter_anisotropic",
         "EXT_texture_mirror_clamp_to_edge",
+        "EXT_texture_norm16",
         "NV_shader_noperspective_interpolation",
         "OES_draw_buffers_indexed",
+        "OES_element_index_uint",
+        "OES_fbo_render_mipmap",
         "OES_sample_variables",
         "OES_shader_multisample_interpolation",
+        "OES_standard_derivatives",
+        "OES_texture_float",
         "OES_texture_float_linear",
+        "OES_texture_half_float",
+        "OES_texture_half_float_linear",
+        "OES_vertex_array_object",
         "OVR_multiview2",
-        "WEBGL_clip_cull_distance",
-        "WEBGL_compressed_texture_s3tc",
-        "WEBGL_compressed_texture_s3tc_srgb",
-        "WEBGL_debug_renderer_info",
-        "WEBGL_lose_context",
-        "WEBGL_multi_draw",
-        "WEBGL_polygon_mode",
-        "WEBGL_stencil_texturing",
-        "EXT_texture_norm16",
         "WEBGL_blend_func_extended",
+        "WEBGL_clip_cull_distance",
+        "WEBGL_color_buffer_float",
         "WEBGL_compressed_texture_astc",
         "WEBGL_compressed_texture_etc",
         "WEBGL_compressed_texture_etc1",
-        "WEBGL_render_shared_exponent"
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_compressed_texture_s3tc_srgb",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_debug_shaders",
+        "WEBGL_depth_texture",
+        "WEBGL_draw_buffers",
+        "WEBGL_lose_context",
+        "WEBGL_multi_draw",
+        "WEBGL_polygon_mode",
+        "WEBGL_render_shared_exponent",
+        "WEBGL_stencil_texturing"
       ],
       "shader_precision": {
-        "high_float": [
-          127,
-          127,
-          23
-        ],
-        "medium_float": [
-          127,
-          127,
-          23
-        ]
+        "float": [127, 127, 23],
+        "int": [31, 30, 0]
       }
     },
     "swiftshader": {
@@ -252,46 +269,54 @@
         "9111": 0
       },
       "extensions": [
+        "ANGLE_instanced_arrays",
+        "EXT_blend_minmax",
         "EXT_clip_control",
         "EXT_color_buffer_float",
         "EXT_color_buffer_half_float",
         "EXT_conservative_depth",
         "EXT_depth_clamp",
         "EXT_float_blend",
+        "EXT_frag_depth",
         "EXT_polygon_offset_clamp",
+        "EXT_sRGB",
+        "EXT_shader_texture_lod",
         "EXT_texture_compression_bptc",
         "EXT_texture_compression_rgtc",
         "EXT_texture_filter_anisotropic",
         "EXT_texture_mirror_clamp_to_edge",
         "NV_shader_noperspective_interpolation",
         "OES_draw_buffers_indexed",
+        "OES_element_index_uint",
+        "OES_fbo_render_mipmap",
         "OES_sample_variables",
         "OES_shader_multisample_interpolation",
+        "OES_standard_derivatives",
+        "OES_texture_float",
         "OES_texture_float_linear",
+        "OES_texture_half_float",
+        "OES_texture_half_float_linear",
+        "OES_vertex_array_object",
         "OVR_multiview2",
         "WEBGL_clip_cull_distance",
+        "WEBGL_color_buffer_float",
         "WEBGL_compressed_texture_astc",
         "WEBGL_compressed_texture_etc",
         "WEBGL_compressed_texture_etc1",
         "WEBGL_compressed_texture_s3tc",
         "WEBGL_compressed_texture_s3tc_srgb",
         "WEBGL_debug_renderer_info",
+        "WEBGL_debug_shaders",
+        "WEBGL_depth_texture",
+        "WEBGL_draw_buffers",
         "WEBGL_lose_context",
         "WEBGL_multi_draw",
         "WEBGL_polygon_mode",
         "WEBGL_stencil_texturing"
       ],
       "shader_precision": {
-        "high_float": [
-          127,
-          127,
-          23
-        ],
-        "medium_float": [
-          15,
-          15,
-          10
-        ]
+        "float": [127, 127, 23],
+        "int": [31, 30, 0]
       }
     }
   },

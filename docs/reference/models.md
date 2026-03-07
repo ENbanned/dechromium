@@ -89,8 +89,8 @@ All models are Pydantic v2 `BaseModel` subclasses with validation.
 | `renderer` | `str` | NVIDIA RTX 3060 D3D11 | `UNMASKED_RENDERER_WEBGL` |
 | `params` | `dict[str, int \| list[int]]` | `{}` | WebGL parameter overrides (hex enum → value) |
 | `extensions` | `list[str]` | `[]` | Supported WebGL extensions |
-| `shader_precision_high` | `list[int]` | `[127, 127, 23]` | highp precision [rangeMin, rangeMax, precision] |
-| `shader_precision_medium` | `list[int]` | `[127, 127, 23]` | mediump precision |
+| `shader_precision_float` | `list[int]` | `[127, 127, 23]` | Float precision [rangeMin, rangeMax, precision] — applied to all levels |
+| `shader_precision_int` | `list[int]` | `[31, 30, 0]` | Int precision — applied to all levels |
 
 ### Noise
 

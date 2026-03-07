@@ -1,4 +1,4 @@
-From 7e93c250501af8b58668c58463bfe207bd3fcef4 Mon Sep 17 00:00:00 2001
+From b18f118be34fb4eeab007f70a11a028cc5a57255 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Sat, 7 Mar 2026 19:02:46 +0000
 Subject: [PATCH 15/15] 015-scrollbar-webgpu-format

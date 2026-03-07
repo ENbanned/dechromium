@@ -10,5 +10,5 @@ class WebGL(BaseModel):
     )
     params: dict[str, int | float | list[int]] = Field(default_factory=dict)
     extensions: list[str] = Field(default_factory=list)
-    shader_precision_high: list[int] = Field(default_factory=lambda: [127, 127, 23])
-    shader_precision_medium: list[int] = Field(default_factory=lambda: [127, 127, 23])
+    shader_precision_float: list[int] = Field(default_factory=lambda: [127, 127, 23])
+    shader_precision_int: list[int] = Field(default_factory=lambda: [31, 30, 0])

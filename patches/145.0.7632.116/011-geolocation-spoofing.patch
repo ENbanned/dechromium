@@ -1,4 +1,4 @@
-From 48b1e12136e9e6e0bd56b07d36b35185c9c50391 Mon Sep 17 00:00:00 2001
+From f6af20d3e131d76b6c4fb4b8563407e07070754b Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Sun, 1 Mar 2026 13:52:58 +0000
 Subject: [PATCH 11/15] 011-geolocation-spoofing
@@ -11,10 +11,10 @@ Subject: [PATCH 11/15] 011-geolocation-spoofing
  4 files changed, 34 insertions(+), 2 deletions(-)
 
 diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
-index d0f389da85166..02fa6666c2c64 100644
+index 891f6f8672203..a677c006a061b 100644
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
-@@ -3816,6 +3816,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+@@ -3818,6 +3818,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
        blink::switches::kAspectFontFamilies,
        blink::switches::kAspectWebglVersion,
        blink::switches::kAspectWebglGlslVersion,
@@ -24,10 +24,10 @@ index d0f389da85166..02fa6666c2c64 100644
        blink::switches::kAspectScreenAvailTop,
        blink::switches::kAspectScrollbarStyle,
 diff --git a/third_party/blink/common/switches.cc b/third_party/blink/common/switches.cc
-index 1ed799a9cee22..60a134f390ef6 100644
+index e46aabb7433e8..3c38f8dc89b46 100644
 --- a/third_party/blink/common/switches.cc
 +++ b/third_party/blink/common/switches.cc
-@@ -185,6 +185,8 @@ const char kAspectDomrectNoiseSeed[] = "aspect-domrect-noise-seed";
+@@ -187,6 +187,8 @@ const char kAspectDomrectNoiseSeed[] = "aspect-domrect-noise-seed";
  const char kAspectFontFamilies[] = "aspect-font-families";
  const char kAspectWebglVersion[] = "aspect-webgl-version";
  const char kAspectWebglGlslVersion[] = "aspect-webgl-glsl-version";
@@ -37,10 +37,10 @@ index 1ed799a9cee22..60a134f390ef6 100644
  const char kAspectScreenAvailTop[] = "aspect-screen-avail-top";
  const char kAspectScrollbarStyle[] = "aspect-scrollbar-style";
 diff --git a/third_party/blink/public/common/switches.h b/third_party/blink/public/common/switches.h
-index 1b34cabe09064..ae6e549fe21f1 100644
+index 218e787b705a9..f390f0d4c3eee 100644
 --- a/third_party/blink/public/common/switches.h
 +++ b/third_party/blink/public/common/switches.h
-@@ -87,6 +87,9 @@ BLINK_COMMON_EXPORT extern const char kAspectFontFamilies[];
+@@ -89,6 +89,9 @@ BLINK_COMMON_EXPORT extern const char kAspectFontFamilies[];
  // WebGL version strings:
  BLINK_COMMON_EXPORT extern const char kAspectWebglVersion[];
  BLINK_COMMON_EXPORT extern const char kAspectWebglGlslVersion[];

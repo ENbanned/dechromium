@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.11.0
+
+### Breaking
+
+- WebGL model: `shader_precision_high` → `shader_precision_float`, `shader_precision_medium` → `shader_precision_int` — now applies to all precision levels (HIGH/MEDIUM/LOW)
+
+### Fixed
+
+- WebGL: BrowserScan -5% "WebGL exception" eliminated — score 95% → 97% (only DNS leak remaining)
+- WebGL: removed rendering noise from readPixels and toDataURL/toBlob — was detected by BrowserScan's R≠A pixel test
+- WebGL: added GPU driver latency simulation (50μs) to `getParameter(UNMASKED_RENDERER/VENDOR)` — SwiftShader was 2000x faster than real hardware, triggering timing-based detection
+- WebGL: shader precision now spoofed for all levels (LOW/MEDIUM/HIGH), not just HIGH and MEDIUM
+- WebGL: extension filter applies to both WebGL1 and WebGL2 — added 16 WebGL1-specific extensions to gpu_profiles.json
+- WebGL: separate `--aspect-webgl-precision-float` and `--aspect-webgl-precision-int` flags replace the old per-level flags
+
+### Chromium patches
+
+- Patch 006 updated: timing delay, precision/extension fixes, noise removal
+- Patch 016 (webgl-rendering-noise) removed — now 15 patches total
+
 ## 0.9.5
 
 ### Fixed

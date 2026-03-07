@@ -185,8 +185,8 @@ class DiversityEngine:
                 "renderer": renderer,
                 "params": dict(backend["params"]),
                 "extensions": effective_exts,
-                "shader_precision_high": list(backend["shader_precision"]["high_float"]),
-                "shader_precision_medium": list(backend["shader_precision"]["medium_float"]),
+                "shader_precision_float": list(backend["shader_precision"]["float"]),
+                "shader_precision_int": list(backend["shader_precision"]["int"]),
             },
             "noise": noise,
             "fonts": {

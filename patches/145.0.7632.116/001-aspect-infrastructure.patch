@@ -1,4 +1,4 @@
-From cfdf16b8fda00e073bef9535f73d71d010dd53f1 Mon Sep 17 00:00:00 2001
+From 4ab396a5d7b661961448b92121f2fefeb4cc16c8 Mon Sep 17 00:00:00 2001
 From: ENbanned <nik.skvortsov2007@gmail.com>
 Date: Fri, 27 Feb 2026 21:00:13 +0000
 Subject: [PATCH 01/15] 001-aspect-infrastructure
@@ -13,10 +13,10 @@ All shared infrastructure for Aspect browser fingerprinting:
  .gitignore                                    |  1 +
  .../browser/chrome_content_browser_client.cc  |  6 +++
  chrome/browser/ui/startup/infobar_utils.cc    |  6 ++-
- .../renderer_host/render_process_host_impl.cc | 26 ++++++++++++
+ .../renderer_host/render_process_host_impl.cc | 28 +++++++++++++
  third_party/blink/common/switches.cc          | 30 +++++++++++++
  third_party/blink/public/common/switches.h    | 42 +++++++++++++++++++
- 6 files changed, 109 insertions(+), 2 deletions(-)
+ 6 files changed, 111 insertions(+), 2 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
 index 4c61af331b827..e8733ff4d609b 100644
@@ -68,10 +68,10 @@ index 04e26dadc8348..4663628d0b2db 100644
    }
  
 diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
-index 2ad7efb8632ca..d0f389da85166 100644
+index 2ad7efb8632ca..891f6f8672203 100644
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
-@@ -3794,6 +3794,32 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+@@ -3794,6 +3794,34 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
        blink::switches::kShowPaintRects,
        blink::switches::kTouchTextSelectionStrategy,
        blink::switches::kJavaScriptFlags,
@@ -92,6 +92,8 @@ index 2ad7efb8632ca..d0f389da85166 100644
 +      blink::switches::kAspectWebglExtensions,
 +      blink::switches::kAspectWebglPrecisionHigh,
 +      blink::switches::kAspectWebglPrecisionMedium,
++      blink::switches::kAspectWebglPrecisionFloat,
++      blink::switches::kAspectWebglPrecisionInt,
 +      blink::switches::kAspectAudioNoiseSeed,
 +      blink::switches::kAspectDomrectNoiseSeed,
 +      blink::switches::kAspectFontFamilies,
