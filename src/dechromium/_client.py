@@ -441,6 +441,17 @@ def _load_country_locales() -> dict:
     return _COUNTRY_LOCALES
 
 
+def _build_proxy_url(net) -> str | None:
+    """Reconstruct full proxy URL with credentials for external requests."""
+    if not net.proxy:
+        return None
+    parsed = urlparse(net.proxy)
+    if net.proxy_username:
+        auth = f"{net.proxy_username}:{net.proxy_password or ''}@"
+        return f"{parsed.scheme}://{auth}{parsed.hostname}:{parsed.port}"
+    return net.proxy
+
+
 def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
     """Resolve None network fields from GeoIP at launch time.
 
@@ -451,7 +462,8 @@ def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
     net = profile.network
     updates: dict = {}
 
-    geo = _lookup_exit_geo(net.proxy, data_dir)
+    full_proxy = _build_proxy_url(net)
+    geo = _lookup_exit_geo(full_proxy, data_dir)
     if geo:
         if net.timezone is None:
             updates["timezone"] = geo.timezone
@@ -495,15 +507,12 @@ def _resolve_network(profile: Profile, data_dir: Path) -> Profile:
 
 def _lookup_exit_geo(proxy: str | None, data_dir: Path):
     """Look up GeoInfo for the exit IP — proxy if set, else public IP."""
-    from dechromium._geoip import lookup, resolve_proxy_ip, resolve_public_ip
+    from dechromium._geoip import lookup, resolve_exit_ip, resolve_public_ip
 
     try:
-        if proxy:
-            ip = resolve_proxy_ip(proxy)
-        else:
-            ip = resolve_public_ip()
-            if not ip:
-                return None
+        ip = resolve_exit_ip(proxy) if proxy else resolve_public_ip()
+        if not ip:
+            return None
         return lookup(ip, data_dir)
     except Exception:
         logger.debug("GeoIP lookup failed", exc_info=True)

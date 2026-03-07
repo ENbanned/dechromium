@@ -298,6 +298,52 @@ def resolve_public_ip() -> str | None:
     return None
 
 
+def resolve_exit_ip(proxy: str) -> str | None:
+    """Resolve the actual exit IP by making a request through the proxy.
+
+    For SOCKS5 proxies, the proxy server IP and exit IP are often different.
+    This queries an external service through the proxy to find the real exit IP.
+
+    Args:
+        proxy: Full proxy URL like ``socks5://user:pass@host:1080``.
+
+    Returns:
+        Exit IP address string, or None if resolution fails.
+    """
+    import subprocess
+
+    services = [
+        "http://api.ipify.org",
+        "http://ifconfig.me/ip",
+        "http://checkip.amazonaws.com",
+    ]
+    for url in services:
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "--max-time", "10", "--proxy", proxy, url],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            ip = result.stdout.strip()
+            if ip and _is_valid_ip(ip):
+                return ip
+        except Exception:
+            continue
+    return None
+
+
+def _is_valid_ip(s: str) -> bool:
+    """Check if a string is a valid IPv4 or IPv6 address."""
+    for family in (socket.AF_INET, socket.AF_INET6):
+        try:
+            socket.inet_pton(family, s)
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def resolve_proxy_ip(proxy: str) -> str:
     """Extract hostname from proxy URL and resolve to IP address.
 
