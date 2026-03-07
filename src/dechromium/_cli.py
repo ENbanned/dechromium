@@ -255,29 +255,39 @@ def _destroy(args: list[str]):
     uninstalled = False
 
     # Try pip first
-    r = subprocess.run(
-        [sys.executable, "-m", "pip", "uninstall", "dechromium", "-y"],
-        capture_output=True,
-        text=True,
-    )
-    if r.returncode == 0 and "Successfully uninstalled" in (r.stdout or ""):
-        print("  Uninstalled via pip")
-        uninstalled = True
-
-    # Try uv (targets the same Python environment)
-    if not uninstalled:
+    try:
         r = subprocess.run(
-            ["uv", "pip", "uninstall", "dechromium", "--python", sys.executable],
+            [sys.executable, "-m", "pip", "uninstall", "dechromium", "-y"],
             capture_output=True,
             text=True,
         )
-        if r.returncode == 0:
-            print("  Uninstalled via uv")
+        if r.returncode == 0 and "Successfully uninstalled" in (r.stdout or ""):
+            print("  Uninstalled via pip")
             uninstalled = True
+    except FileNotFoundError:
+        pass
+
+    # Try uv
+    if not uninstalled:
+        try:
+            r = subprocess.run(
+                ["uv", "pip", "uninstall", "dechromium"],
+                capture_output=True,
+                text=True,
+            )
+            if r.returncode == 0:
+                print("  Uninstalled via uv")
+                uninstalled = True
+            else:
+                print(f"  uv failed: {(r.stderr or r.stdout or '').strip()}")
+        except FileNotFoundError:
+            pass
 
     if not uninstalled:
         print("  Warning: could not uninstall package automatically.")
-        print(f"  Run manually: {sys.executable} -m pip uninstall dechromium")
+        print("  Run manually:")
+        print("    pip uninstall dechromium")
+        print("    # or: uv pip uninstall dechromium")
 
     print()
     if uninstalled:

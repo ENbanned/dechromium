@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.2
+
+### Fixed
+
+- `destroy` command: fix package uninstall in uv-managed venvs — drop `--python` flag, handle missing `pip`/`uv` gracefully, show actual error on failure
+
 ## 0.11.1
 
 ### Fixed
