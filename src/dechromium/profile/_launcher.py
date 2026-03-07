@@ -83,7 +83,7 @@ def build_launch_args(profile: Profile, config: Config) -> list[str]:
     args.append("--aspect-webgl-version=OpenGL ES 3.0 Chromium")
     args.append("--aspect-webgl-glsl-version=OpenGL ES GLSL ES 3.0 Chromium")
 
-    # WebGL params — hex-based format: "0D33=16384,0D3D=32767x32767,..."
+    # WebGL params — hex-based format: "0D33=16384,0D3A=32767x32767,..."
     # C++ parses hex GLenum keys directly, no name mapping needed.
     if wgl.params:
         pairs = []

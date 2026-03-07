@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.4
+
+### Fixed
+
+- WebGL2: `getParameter()` for Int64 params (e.g. `MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS`, `MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS`, `MAX_ELEMENT_INDEX`) was not spoofed — `WebGL2RenderingContextBase::GetInt64Parameter` overrode the hooked base class method
+- GPU profiles: corrected 3 wrong GL enum hex codes across all backends — `MAX_FRAGMENT_UNIFORM_BLOCKS` (0x8A3D→0x8A2D), `MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS` (0x8C8E→0x8C8B), `MAX_TEXTURE_MAX_ANISOTROPY_EXT` (0x84FE→0x84FF)
+- GPU profiles: added missing `MAX_ELEMENT_INDEX` (0x8D6B) — D3D11/Metal: 4294967294, SwiftShader: 1073741823
+
+### Chromium patches
+
+- Fixup 006: WebGL2 Int64 parameter spoofing — `GetAspectWebglParams()` hook in `webgl2_rendering_context_base.cc`
+
 ## 0.9.3
 
 ### Fixed
